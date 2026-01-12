@@ -1,0 +1,33 @@
+{
+    "functions": [
+        {
+            "source": "functions",
+            "runtime": "python311",
+            "codebase": "default",
+            "ignore": [
+                "venv",
+                ".git",
+                "firebase-debug.log",
+                "firebase-debug.*.log"
+            ]
+        }
+    ],
+    "hosting": {
+        "public": "web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "/dashboard",
+                "destination": "/dashboard.html"
+            },
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    }
+}

@@ -1,0 +1,101 @@
+[
+    {
+        "id": "simco_dashboard_tab",
+        "type": "ui_tab",
+        "name": "SIMCO AI Shop Floor",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "gauge_spindle_load",
+        "type": "ui_gauge",
+        "z": "simco_dashboard_tab",
+        "name": "Spindle Load",
+        "group": "main_group",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Spindle Load (%)",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#00B12B",
+            "#E6E600",
+            "#CA3838"
+        ],
+        "seg1": "70",
+        "seg2": "90"
+    },
+    {
+        "id": "chart_telemetry_trend",
+        "type": "ui_chart",
+        "z": "simco_dashboard_tab",
+        "name": "Live Telemetry",
+        "group": "main_group",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "label": "Telemetry Trend",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": 0,
+        "ymax": 100,
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600"
+    },
+    {
+        "id": "lang_toggle",
+        "type": "ui_dropdown",
+        "z": "simco_dashboard_tab",
+        "name": "Language Selection",
+        "label": "Language / שפה / Sprache",
+        "tooltip": "",
+        "place": "Select Language",
+        "group": "settings_group",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "multiple": false,
+        "options": [
+            {
+                "label": "English",
+                "value": "en",
+                "type": "str"
+            },
+            {
+                "label": "Hebrew (עברית)",
+                "value": "he",
+                "type": "str"
+            },
+            {
+                "label": "German (Deutsch)",
+                "value": "de",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "lang"
+    },
+    {
+        "id": "status_indicator",
+        "type": "ui_text",
+        "z": "simco_dashboard_tab",
+        "group": "main_group",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "Machine Status",
+        "label": "Status",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread"
+    }
+]

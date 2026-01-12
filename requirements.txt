@@ -1,0 +1,7 @@
+requests
+schedule
+python-nmap
+pydantic
+pydantic-settings
+aiofiles
+google-cloud-bigquery

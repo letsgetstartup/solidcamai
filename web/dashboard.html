@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMCO AI | CNC Management Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="dashboard-body">
+    <nav class="dash-nav">
+        <div class="logo-group">
+            <img src="assets/simco_ai_hero_logo.png" alt="SIMCO AI" class="nav-logo">
+            <span>Admin Console</span>
+        </div>
+        <div id="auth-status" class="auth-group">
+            <span id="user-email"></span>
+            <button id="logout-btn" class="logout-button" style="display: none;">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Login Section -->
+        <section id="auth-section" class="auth-card">
+            <h2>Secure Access</h2>
+            <p>Enter your credentials to manage the CNC network.</p>
+            <form id="login-form">
+                <input type="email" id="email" placeholder="Email Address" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <div class="auth-actions">
+                    <button type="submit" id="login-submit" class="cta-button">Login</button>
+                    <button type="submit" id="signup-submit" class="cta-button secondary">Create Account</button>
+                </div>
+            </form>
+            <p id="auth-error" class="error-msg"></p>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" style="display: none;">
+            <div class="dash-header">
+                <h2>CNC Machine Discovery</h2>
+                <div class="status-badge live">SYSTEM LIVE</div>
+            </div>
+
+            <div class="table-container">
+                <table id="machine-table">
+                    <thead>
+                        <tr>
+                            <th>Preview</th>
+                            <th>Machine Model</th>
+                            <th>Discovery ID</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="machine-list">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Firebase SDKs -->
+    <script type="module" src="dashboard.js"></script>
+</body>
+
+</html>

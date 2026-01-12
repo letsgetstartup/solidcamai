@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMCO AI | Production Homepage</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <img src="assets/simco_ai_hero_logo.png" alt="SIMCO AI Logo" class="hero-img">
+        <h1>SIMCO AI</h1>
+        <p class="subtitle">Autonomous IIoT Edge Ecosystem for SolidCAM Machine Shops. Seven integrated agents working
+            in harmony to secure, analyze, and visualize your shop floor.</p>
+        <a href="dashboard.html" class="cta-button">Open Dashboard</a>
+    </header>
+
+    <section class="grid">
+        <div class="card">
+            <h3>DevOps Agent (A)</h3>
+            <p>Zero-touch network discovery. Instantly identifies every machine on your shop floor without manual
+                configuration.</p>
+        </div>
+        <div class="card">
+            <h3>Edge Ingestor (B)</h3>
+            <p>High-performance data acquisition with Edge AI anomaly detection to prevent tool breakage and downtime.
+            </p>
+        </div>
+        <div class="card">
+            <h3>Cloud Uplink (C)</h3>
+            <p>Resilient "Store-and-Forward" protocol. Zero data loss during cellular or network outages.</p>
+        </div>
+        <div class="card">
+            <h3>Security Sentinel (E)</h3>
+            <p>Tamper-evident cryptographic auditing and GDPR compliance. Your data is hardened from the edge.</p>
+        </div>
+        <div class="card">
+            <h3>Interaction Manager (F)</h3>
+            <p>Omni-channel reporting, big-screen entrance KPIs, and AI research chatbot for deep investigation.</p>
+        </div>
+        <div class="card">
+            <h3>QA & Acceptance (G)</h3>
+            <p>Autonomous system health audits and automated client certification for 100% reliability.</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 SIMCO AI. All Agents Operational. | <a href="../CLIENT_ACCEPTANCE_CERTIFICATE.md"
+                style="color: inherit;">View system Certificate</a></p>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxONQZGuOsqUu85rfeh5YWlZjLonTn8e8",
+            authDomain: "solidcamal.firebaseapp.com",
+            projectId: "solidcamal",
+            storageBucket: "solidcamal.firebasestorage.app",
+            messagingSenderId: "165430767822",
+            appId: "1:165430767822:web:944d131a648ecda071e09f",
+            measurementId: "G-N1R51WW90Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+
+        console.log("SIMCO AI: Production Environment Initialized (Project: solidcamal)");
+    </script>
+</body>
+
+</html>

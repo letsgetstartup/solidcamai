@@ -1,0 +1,111 @@
+:root {
+    --primary: #00f2ff;
+    --secondary: #ffac00;
+    --bg: #0a0b10;
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.1);
+    --font-main: 'Inter', sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    color: #fff;
+    font-family: var(--font-main);
+    overflow-x: hidden;
+}
+
+header {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #1a1c2c 0%, #0a0b10 100%);
+    text-align: center;
+}
+
+.hero-img {
+    width: 200px;
+    height: 200px;
+    margin-bottom: 2rem;
+    filter: drop-shadow(0 0 20px var(--primary));
+    animation: pulse 4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+}
+
+h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(90deg, #fff, var(--primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -2px;
+}
+
+p.subtitle {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 600px;
+    margin-top: 1rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    padding: 4rem 10%;
+    background: #0d0f17;
+}
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 242, 255, 0.1);
+}
+
+.card h3 {
+    color: var(--primary);
+    margin-top: 0;
+}
+
+.cta-button {
+    margin-top: 3rem;
+    padding: 1rem 2.5rem;
+    background: var(--primary);
+    color: #000;
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.cta-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px var(--primary);
+}
+
+footer {
+    padding: 4rem;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.9rem;
+}
