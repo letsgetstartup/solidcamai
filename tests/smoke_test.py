@@ -12,13 +12,20 @@ def run_smoke_tests():
     # Test 1: Cloud Function (Ingestion)
     print("\n[TEST 1] Ingesting Telemetry...")
     payload = {
-        "machine_id": "SMOKE-TEST-CNC",
-        "telemetry": {"spindle_load": 42, "status": "TESTING"}
+        "records": [{
+            "record_id": f"smoke:{int(time.time())}",
+            "tenant_id": "tenant_demo",
+            "site_id": "site_demo",
+            "machine_id": "SMOKE-TEST-CNC",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "status": "ACTIVE",
+            "metrics": {"spindle_load": 42.5}
+        }]
     }
     try:
         res = requests.post(INGEST_URL, json=payload, timeout=5)
         if res.status_code == 200:
-            print("✅ SUCCESS: Telemetry accepted by Cloud Function.")
+            print(f"✅ SUCCESS: Ingested {res.json().get('records_ingested')} records.")
         else:
             print(f"❌ FAILED: Status {res.status_code} | {res.text}")
     except Exception as e:

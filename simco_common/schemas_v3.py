@@ -57,6 +57,15 @@ class AssetRecord(BaseModel):
     mac: Optional[str] = None
     last_seen: str
 
+class MachineRegistryEntry(BaseModel):
+    machine_id: str
+    ip: str
+    vendor: str
+    status: str
+    driver_id: Optional[str] = None
+    last_seen: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
 class TelemetryBatch(BaseModel):
     records: List[TelemetryRecord]
 

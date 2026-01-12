@@ -34,9 +34,9 @@ class BufferManager:
         """Generates a deterministic ID for idempotency using shared logic."""
         from simco_common.id import generate_record_id
         
-        # In a real setup, tenant_id/site_id would come from settings
-        tenant_id = settings.__dict__.get("TENANT_ID", "local-dev-tenant")
-        site_id = settings.__dict__.get("SITE_ID", "local-site-01")
+        # Use payload's IDs if available (from Ingestor/State), else fallback to settings
+        tenant_id = payload.get("tenant_id") or settings.__dict__.get("TENANT_ID", "local-dev-tenant")
+        site_id = payload.get("site_id") or settings.__dict__.get("SITE_ID", "local-site-01")
         
         # Ensure payload has these for the cloud
         payload["tenant_id"] = tenant_id

@@ -1,9 +1,14 @@
 from firebase_functions import https_fn
 from firebase_admin import initialize_app
 from google.cloud import bigquery
+import sys
+import os
 import json
 import logging
 from datetime import datetime
+
+# Add root directory to sys.path to allow imports from simco_common
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 initialize_app()
 
@@ -62,10 +67,6 @@ def enroll_device(req: https_fn.Request) -> https_fn.Response:
 @https_fn.on_request()
 def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
     """Unified Edge-to-Cloud Ingestion Point (v3.1)."""
-    import sys
-    import os
-    # Add root to sys.path to find simco_common
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from simco_common.schemas_v3 import TelemetryBatch
 
     if req.method != 'POST':
@@ -100,10 +101,13 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
             
             # Hot Path: Publish to Processing Bus (Expansion Task 1)
             record_data = record.model_dump()
+            
+            # For Unified Dev Router optimization: ensure processing runs now
+            task = processor.process_record(record_data)
             if loop.is_running():
-                loop.create_task(bus.publish([record_data]))
+                 loop.create_task(task)
             else:
-                loop.run_until_complete(bus.publish([record_data]))
+                 loop.run_until_complete(task)
             
             ingested_ids.append(record.record_id)
             
@@ -146,10 +150,6 @@ def ai_investigator(req: https_fn.Request) -> https_fn.Response:
         "response": f"Serverless AI Analysis for: '{query}'. System healthy."
     }), mimetype="application/json")
 
-@https_fn.on_request()
-def enroll_device(req: https_fn.Request) -> https_fn.Response:
-    # ... existing code ...
-    return https_fn.Response(json.dumps(response), mimetype="application/json")
 
 @https_fn.on_request()
 def manual_enroll(req: https_fn.Request) -> https_fn.Response:
@@ -199,67 +199,86 @@ def portal_api(req: https_fn.Request) -> https_fn.Response:
     path = req.path
     
     # Simple Router
-    if "/v1/tenants/" not in path:
-        return https_fn.Response("Bad Route", status=404)
-        
+    # Expected: .../v1/tenants/{tid}/sites/...
     parts = path.split("/")
-    # Expected: /v1/tenants/{tid}/sites/...
-    tenant_id = parts[3]
+    try:
+        if "tenants" in parts:
+            idx = parts.index("tenants")
+            tenant_id = parts[idx+1]
+            site_id = parts[idx+3] if len(parts) > idx+3 and parts[idx+2] == "sites" else None
+        else:
+            return https_fn.Response("Invalid Path", status=400)
+    except IndexError:
+        return https_fn.Response("Invalid Path Structure", status=400)
     
     # 1. RBAC check
-    site_id = parts[5] if len(parts) > 5 else None
     allowed, error = check_rbac(req, tenant_id, site_id)
     if not allowed:
         return https_fn.Response(json.dumps({"error": error}), status=403, mimetype="application/json")
 
-    # 2. Handle Requests (Mocked Operational Store)
+    # 2. Handle Requests (Real Operational Store backbacked)
     if path.endswith("/sites"):
+        # In production, query DB. Here, we can derive from state_store
+        sites = {}
+        for key in processor.state_store:
+            tid, sid, mid = key.split(":")
+            if tid == tenant_id:
+                sites[sid] = sites.get(sid, 0) + 1
         return https_fn.Response(json.dumps([
-            {"site_id": "site_01", "name": "Main Factory", "machine_count": 5},
-            {"site_id": "site_dev", "name": "R&D Lab", "machine_count": 2}
-        ]), mimetype="application/json")
+            {"site_id": sid, "name": sid.capitalize(), "machine_count": count} for sid, count in sites.items()
+        ] or [{"site_id": "site_demo", "name": "Default Site", "machine_count": 0}]), mimetype="application/json")
         
     if "/machines" in path and not path.endswith("/state"):
-        return https_fn.Response(json.dumps([
-            {"machine_id": "fanuc_01", "status": "ONLINE", "last_seen": datetime.utcnow().isoformat()},
-            {"machine_id": "haas_02", "status": "IDLE", "last_seen": datetime.utcnow().isoformat()}
-        ]), mimetype="application/json")
+        machines = []
+        for key, record in processor.state_store.items():
+            tid, sid, mid = key.split(":")
+            if tid == tenant_id and (not site_id or sid == site_id):
+                machines.append({
+                    "machine_id": mid,
+                    "status": record.get("status"),
+                    "last_seen": record.get("timestamp")
+                })
+        return https_fn.Response(json.dumps(machines), mimetype="application/json")
 
     if path.endswith("/state"):
-        machine_id = parts[7]
-        return https_fn.Response(json.dumps({
-            "machine_id": machine_id,
-            "status": "ACTIVE",
-            "timestamp": datetime.utcnow().isoformat(),
-            "metrics": {"spindle_load": 42.5, "feed_rate": 1200}
-        }), mimetype="application/json")
+        try:
+            if "machines" in parts:
+                idx = parts.index("machines")
+                machine_id = parts[idx+1]
+                machine_key = f"{tenant_id}:{site_id}:{machine_id}"
+                state = processor.state_store.get(machine_key)
+                if state:
+                    return https_fn.Response(json.dumps(state), mimetype="application/json")
+                return https_fn.Response(json.dumps({"error": "Machine not found"}), status=404, mimetype="application/json")
+        except IndexError:
+             return https_fn.Response("Invalid Path Structure", status=400)
 
     if path.endswith("/events"):
-        return https_fn.Response(json.dumps([
-            {"event_id": "ev_001", "type": "ANOMALY_DETECTED", "severity": "HIGH", "timestamp": datetime.utcnow().isoformat()},
-            {"event_id": "ev_002", "type": "CONFIG_CHANGED", "severity": "INFO", "timestamp": datetime.utcnow().isoformat()}
-        ]), mimetype="application/json")
+        events = []
+        # Return all events for the tenant/site or just for specific machine if path matches
+        # For simplicity, returning events for the specific site
+        for key, machine_events in processor.event_store.items():
+            tid, sid, mid = key.split(":")
+            if tid == tenant_id and (not site_id or sid == site_id):
+                events.extend(machine_events)
+        
+        # Sort by timestamp descending
+        events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return https_fn.Response(json.dumps(events[:50]), mimetype="application/json")
 
     if path.endswith("/health/fleet"):
-        # Real-time Ops View (Gathered from Heatbeat/Stats store)
-        return https_fn.Response(json.dumps([
-            {
-                "machine_id": "fanuc_01",
-                "status": "ONLINE",
-                "last_seen": datetime.utcnow().isoformat(),
-                "buffer_depth": 12,
-                "sync_latency_sec": 45,
-                "version": "v3.1.2-GA"
-            },
-            {
-                "machine_id": "haas_02",
-                "status": "UNHEALTHY",
-                "last_seen": (datetime.utcnow().isoformat()),
-                "buffer_depth": 4500,
-                "sync_latency_sec": 3600,
-                "version": "v3.1.1-GA"
-            }
-        ]), mimetype="application/json")
+        # Real-time Ops View
+        health = []
+        for key, record in processor.state_store.items():
+            tid, sid, mid = key.split(":")
+            if tid == tenant_id:
+                health.append({
+                    "machine_id": mid,
+                    "status": "ONLINE" if record.get("status") in ["ACTIVE", "RUNNING"] else "IDLE",
+                    "last_seen": record.get("timestamp"),
+                    "metrics": record.get("metrics", {})
+                })
+        return https_fn.Response(json.dumps(health), mimetype="application/json")
 
     if "/deletion_requests" in path:
         if req.method != 'POST': return https_fn.Response('POST only', status=405)

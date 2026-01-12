@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Network Scanning
-    SCAN_SUBNET: str = "192.168.1.0/24"
+    SCAN_SUBNET: str = "127.0.0.1/32"
     SCAN_INTERVAL_SECONDS: int = 60
 
     # Data Buffering

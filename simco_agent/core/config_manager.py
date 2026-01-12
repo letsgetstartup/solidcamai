@@ -9,6 +9,7 @@ from simco_agent.config import settings
 from simco_agent.core.device_state import DeviceState
 from simco_agent.core.buffer_manager import BufferManager
 from simco_agent.discovery.orchestrator import DiscoveryOrchestrator
+from simco_agent.core.registry import load_registry, save_registry
 
 logger = logging.getLogger("simco_agent.config_manager")
 
@@ -69,31 +70,26 @@ class ConfigManager:
         # 3. Handle Manual Enrollments
         manual_entries = new_config.get("pending_manual_enrollments", [])
         if manual_entries:
-            registry_path = "machine_registry.json"
-            registry = {}
-            if os.path.exists(registry_path):
-                with open(registry_path, "r") as f:
-                    try: registry = json.load(f)
-                    except: pass
+            registry = load_registry()
+            existing_ips = {m.get("ip") for m in registry}
             
             applied_count = 0
             for entry in manual_entries:
                 ip = entry.get("machine_ip")
-                if ip and ip not in registry:
-                    registry[ip] = {
+                if ip and ip not in existing_ips:
+                    registry.append({
                         "machine_id": entry.get("machine_id", ip),
                         "ip": ip,
                         "status": "MANUAL_ENROLLED",
                         "source": "manual_portal",
                         "last_seen": datetime.utcnow().isoformat(),
-                        "vendor_hint": entry.get("vendor"),
+                        "vendor": entry.get("vendor", "UNKNOWN"),
                         "preferred_driver": entry.get("preferred_driver_id")
-                    }
+                    })
                     applied_count += 1
             
             if applied_count > 0:
-                with open(registry_path, "w") as f:
-                    json.dump(registry, f, indent=2)
+                save_registry(registry)
                 logger.info(f"Manual Enrollment: Applied {applied_count} new machines from cloud config.")
 
         # 4. Emit CONFIG_CHANGED event

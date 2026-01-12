@@ -45,10 +45,15 @@ class UplinkWorker:
                 payloads = [item[1] for item in batch]
                 
                 # Injected deterministic id for backend idempotency
-                for p, record_id in zip(payloads, ids):
-                    p["record_id"] = record_id
+                # record_id = {device_id}:{sqlite_row_id}
+                from simco_agent.core.device_state import DeviceState
+                device_id = DeviceState().device_id
+                
+                for p, row_id in zip(payloads, ids):
+                    if "record_id" not in p or not p["record_id"]:
+                        p["record_id"] = f"{device_id}:{row_id}"
 
-                success = await self._upload_batch(payloads)
+                success = await self._upload_batch({"records": payloads})
                 from simco_agent.observability.metrics import edge_metrics
                 
                 # 4. Success/Failure Handling
@@ -73,7 +78,7 @@ class UplinkWorker:
                 logger.error(f"UplinkWorker loop error: {e}")
                 await asyncio.sleep(self.interval)
 
-    async def _upload_batch(self, payloads: list) -> bool:
+    async def _upload_batch(self, batch_dict: dict) -> bool:
         """Performs the actual HTTP POST."""
         loop = asyncio.get_event_loop()
         try:
@@ -82,7 +87,7 @@ class UplinkWorker:
                 None, 
                 lambda: requests.post(
                     self.ingest_url, 
-                    json=payloads, 
+                    json=batch_dict, 
                     timeout=self.timeout
                 )
             )

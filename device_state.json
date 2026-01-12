@@ -1,0 +1,7 @@
+{
+  "device_id": "device_demo",
+  "tenant_id": "tenant_demo",
+  "site_id": "site_demo",
+  "channel": "dev",
+  "config_version": 1
+}

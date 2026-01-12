@@ -45,7 +45,7 @@ async def main():
 
     from .discovery.orchestrator import DiscoveryOrchestrator
     orchestrator = DiscoveryOrchestrator()
-    ingestor = Ingestor()
+    ingestor = Ingestor(state)
 
     try:
         while True:
@@ -56,10 +56,10 @@ async def main():
             candidates = await loop.run_in_executor(None, orchestrator.run_discovery_cycle)
             
             # 4. Ingestion Cycle (Drivers)
-            if candidates:
-                # In production, we'd map candidates to MachineInfo schemas
-                # For MVP, ingestor handles the registry update or driver polling
-                await ingestor.ingest_cycle(candidates)
+            from .core.registry import load_registry
+            registry = load_registry()
+            if registry:
+                await ingestor.ingest_cycle(registry)
             
             await asyncio.sleep(settings.SCAN_INTERVAL_SECONDS)
     finally:

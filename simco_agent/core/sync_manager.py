@@ -41,11 +41,8 @@ class SyncManager:
 
     def get_required_drivers(self, manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Determine which drivers are needed based on the machine registry."""
-        if not os.path.exists(self.registry_file):
-            return []
-
-        with open(self.registry_file, "r") as f:
-            registry = json.load(f)
+        from .registry import load_registry
+        registry = load_registry(self.registry_file)
 
         required_ids = set()
         for machine in registry:

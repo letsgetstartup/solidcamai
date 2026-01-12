@@ -18,8 +18,11 @@ class GenericProtocolDriver(BaseDriver):
         if "FAIL" in self.ip:
             raise Exception("Simulated Failure")
         
+        import random
         return {
-            "status": "UNKNOWN",
+            "status": random.choice(["ACTIVE", "IDLE", "RUNNING"]),
+            "spindle_load_pct": random.uniform(20.0, 100.0), # Matches rule metric name
+            "feed_rate": random.uniform(500, 2000),
             "message": "Generic Driver Active"
         }
 

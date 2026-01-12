@@ -6,11 +6,13 @@ from typing import List, Dict, Any
 from .policy import DiscoveryPolicy
 from .passive import discover_passive
 from .active import discover_active
+from simco_agent.config import settings
+from simco_agent.core.registry import load_registry, save_registry
 
 logger = logging.getLogger(__name__)
 
 class DiscoveryOrchestrator:
-    def __init__(self, registry_path: str = "machine_registry.json"):
+    def __init__(self, registry_path: str = None):
         self.registry_path = registry_path
         self.policy = DiscoveryPolicy() # Default, usually updated via ConfigManager
 
@@ -36,7 +38,7 @@ class DiscoveryOrchestrator:
         # 2. Active Discovery
         if self.policy.is_active_allowed():
             # Extract subnets from policy or default to common local ranges if empty
-            subnets = self.policy.allowed_subnets or ["192.168.1.0/24"]
+            subnets = self.policy.allowed_subnets or [settings.SCAN_SUBNET]
             active_results = discover_active(
                 subnets=subnets,
                 ports=self.policy.port_probes,
@@ -58,31 +60,27 @@ class DiscoveryOrchestrator:
         return all_candidates
 
     def _update_registry(self, candidates: List[Dict[str, Any]]):
-        registry = {}
-        if os.path.exists(self.registry_path):
-            with open(self.registry_path, "r") as f:
-                try:
-                    registry = json.load(f)
-                except json.JSONDecodeError:
-                    pass
+        registry = load_registry(self.registry_path)
+        existing = {m["ip"]: i for i, m in enumerate(registry)}
 
         # Use IP as machine_id if unknown
         for c in candidates:
             ip = c["ip"]
-            if ip not in registry:
-                registry[ip] = {
+            if ip not in existing:
+                registry.append({
                     "machine_id": ip,
                     "ip": ip,
+                    "vendor": c.get("vendor", "UNKNOWN"),
                     "status": "DISCOVERED",
                     "source": c["source"],
                     "last_seen": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                }
+                })
             else:
-                registry[ip]["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                registry[ip]["status"] = "REACHABLE"
+                idx = existing[ip]
+                registry[idx]["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                registry[idx]["status"] = "REACHABLE"
 
-        with open(self.registry_path, "w") as f:
-            json.dump(registry, f, indent=2)
+        save_registry(registry, self.registry_path)
         logger.info(f"Orchestrator: Machine registry updated with {len(candidates)} candidates")
 
 
