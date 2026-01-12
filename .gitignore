@@ -18,3 +18,6 @@ firebase-debug.*.log
 
 # Logs
 *.log
+
+# SIMCO AI Secrets
+web/firebase-config.js

@@ -1,16 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-
-// Firebase Configuration (from your project solidcamal)
-const firebaseConfig = {
-    apiKey: "AIzaSyCxONQZGuOsqUu85rfeh5YWlZjLonTn8e8",
-    authDomain: "solidcamal.firebaseapp.com",
-    projectId: "solidcamal",
-    storageBucket: "solidcamal.firebasestorage.app",
-    messagingSenderId: "165430767822",
-    appId: "1:165430767822:web:944d131a648ecda071e09f",
-    measurementId: "G-N1R51WW90Q"
-};
+import { firebaseConfig } from "./firebase-config.js";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
