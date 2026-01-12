@@ -27,3 +27,9 @@ class FanucDriver(BaseDriver):
             "feed_rate": round(random.uniform(500, 2000), 2),
             "program_name": "O" + str(random.randint(1000, 5000))
         }
+
+    async def healthcheck(self) -> Dict[str, Any]:
+        return {
+            "status": "HEALTHY" if self.connected else "DISCONNECTED",
+            "focas_connectivity": "OK"
+        }

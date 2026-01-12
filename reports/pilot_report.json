@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-01-12T13:14:03.922586",
+  "config": {
+    "machines": 20,
+    "outage_min": 30,
+    "compress_sec": 5
+  },
+  "metrics": {
+    "discovery_count": 20,
+    "discovery_duration_sec": 2.5,
+    "total_ingested": 200,
+    "data_loss_percent": 0,
+    "buffer_drain_success": true
+  },
+  "gates": {
+    "DISCO_01": true,
+    "DISCO_02": true,
+    "DUR_01": true,
+    "DUR_02": true,
+    "DATA_01": true,
+    "ID_01": true,
+    "SEC_01": true,
+    "SEC_02": true
+  },
+  "overall_status": "PASS"
+}

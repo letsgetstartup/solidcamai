@@ -1,0 +1,21 @@
+{
+    "__direction": "rtl",
+    "app_name": "פורטל הענן SIMCO AI",
+    "nav_dashboard": "לוח בקרה",
+    "nav_sites": "אתרים",
+    "nav_machines": "מכונות",
+    "nav_events": "אירועים",
+    "status_online": "מחובר",
+    "status_idle": "בהמתנה",
+    "status_offline": "מנותק",
+    "status_active": "פעיל",
+    "machine_state": "מצב מכונה",
+    "machine_metrics": "מדדים",
+    "event_timeline": "ציר זמן אירועים",
+    "last_seen": "נראה לאחרונה",
+    "buffer_depth": "עומק מאגר",
+    "login_title": "כניסת שער תעשייתי",
+    "login_button": "כניסה לפורטל מאובטח",
+    "select_site": "בחר אתר",
+    "select_tenant": "בחר לקוח"
+}

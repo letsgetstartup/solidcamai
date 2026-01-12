@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  simco-agent:
+    build: .
+    volumes:
+      - ./data:/data
+    environment:
+      - SIMCO_DEBUG=True
+      - SIMCO_MGMT_BASE_URL=http://mgmt-stub:8090
+    depends_on:
+      - mgmt-stub
+
+  mgmt-stub:
+    image: python:3.11-slim
+    command: python -m http.server 8090
+    ports:
+      - "8090:8090"

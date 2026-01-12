@@ -1,59 +1,47 @@
-import asyncio
-import json
 import logging
-import aiofiles
-from typing import List
-from ..config import settings
-from ..schemas import MachineInfo, TelemetryPayload
-from ..drivers.factory import DriverFactory
+from typing import List, Dict, Any
+from .driver_manager import DriverManager
+from ..schemas import TelemetryPayload
 
 logger = logging.getLogger("simco_agent.ingestor")
 
 class Ingestor:
+    """Orchestrates driver execution and local buffering."""
+    
     def __init__(self):
-        self.buffer_file = settings.BUFFER_FILE
-
-    async def ingest_cycle(self, machines: List[MachineInfo]):
-        """Polls all machines concurrently."""
-        tasks = [self._process_machine(machine) for machine in machines if machine.status != "offline"]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        valid_payloads = [r for r in results if isinstance(r, TelemetryPayload)]
-        if valid_payloads:
-            await self._buffer_data(valid_payloads)
-
-    async def _process_machine(self, machine: MachineInfo) -> TelemetryPayload:
-        try:
-            driver = DriverFactory.get_driver(machine.vendor, machine.ip)
-            if not driver:
-                logger.warning(f"No driver found for {machine.vendor} at {machine.ip}")
-                return None
-
-            raw_data = await driver.read_telemetry()
-            
-            # Anomaly Detection Logic (Edge AI)
-            is_anomaly = raw_data.get('spindle_load', 0) > settings.SPINDLE_LOAD_THRESHOLD
-            
-            payload = TelemetryPayload(
-                machine_id=machine.mac if machine.mac != "Unknown" else machine.ip,
-                status=raw_data.get('status', 'UNKNOWN'),
-                spindle_load=raw_data.get('spindle_load', 0.0),
-                feed_rate=raw_data.get('feed_rate', 0.0),
-                program_name=raw_data.get('program_name'),
-                anomaly=is_anomaly
-            )
-            return payload
-
-        except Exception as e:
-            logger.error(f"Error polling {machine.ip}: {e}")
-            return None
+        self.dm = DriverManager()
 
     async def _buffer_data(self, payloads: List[TelemetryPayload]):
         try:
-            async with aiofiles.open(self.buffer_file, mode='a') as f:
-                for p in payloads:
-                    # dump_json method pydantic v2
-                    await f.write(p.model_dump_json() + "\n")
-            logger.info(f"Buffered {len(payloads)} records.")
+            from .buffer_manager import BufferManager
+            bm = BufferManager()
+            for p in payloads:
+                bm.enqueue(p.model_dump())
+            logger.info(f"Durable buffer updated with {len(payloads)} records.")
         except Exception as e:
-            logger.error(f"Failed to buffer data: {e}")
+            logger.error(f"Failed to buffer data to SQLite: {e}")
+
+    async def ingest_cycle(self, machines: List[Dict[str, Any]]):
+        """Execute a single ingestion cycle for all active machines."""
+        payloads = []
+        for m in machines:
+            try:
+                import time
+                from simco_agent.observability.metrics import edge_metrics
+                start_poll = time.time()
+                data = await self.dm.execute_driver(m["driver_id"], m)
+                duration = (time.time() - start_poll) * 1000
+                edge_metrics.histogram("edge.driver.poll.duration_ms", duration, labels={"driver_id": m["driver_id"]})
+                
+                if data:
+                    payload = TelemetryPayload(
+                        machine_id=m["machine_id"],
+                        **data
+                    )
+                    payloads.append(payload)
+            except Exception as e:
+                logger.error(f"Ingestion failed for machine {m.get('machine_id')}: {e}")
+                edge_metrics.counter("edge.driver.poll.timeout_count", 1, labels={"driver_id": m["driver_id"]})
+
+        if payloads:
+            await self._buffer_data(payloads)

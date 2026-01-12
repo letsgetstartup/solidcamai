@@ -61,7 +61,7 @@ class SecurityAgent:
         """GDPR/Compliance: Remove or mask PII before cloud upload."""
         # For CNC data, we mask Operator ID or machine notes if present
         if "operator_id" in data:
-            data["operator_id"] = "MASKED_" + hashlib.md5(data["operator_id"].encode()).hexdigest()[:8]
+            data["operator_id"] = "MASKED_" + hashlib.sha256(data["operator_id"].encode()).hexdigest()[:12]
         return data
 
     async def verify_integrity(self) -> bool:

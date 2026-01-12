@@ -21,3 +21,24 @@ firebase-debug.*.log
 
 # SIMCO AI Secrets
 web/firebase-config.js
+
+# Build and Temp
+.tmp/
+.tmp_smoke/
+build/
+dist/
+*.egg-info/
+support_bundle.zip
+
+# Local Metrics
+*.jsonl
+reports/driver_cert/
+reports/slo_report/
+reports/cost_forecast.json
+
+# Test Artifacts
+test_driver.zip
+test_driver.zip.sig
+machine_registry.json
+driver_hub/drivers/
+driver_hub/manifest.json

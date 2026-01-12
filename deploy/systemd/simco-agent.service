@@ -1,0 +1,15 @@
+[Unit]
+Description=SIMCO AI Edge Agent
+After=network.target
+
+[Service]
+User=simco
+Group=simco
+WorkingDirectory=/opt/simco-agent
+Environment=PYTHONPATH=/opt/simco-agent
+ExecStart=/opt/simco-agent/venv/bin/python -m simco_agent
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

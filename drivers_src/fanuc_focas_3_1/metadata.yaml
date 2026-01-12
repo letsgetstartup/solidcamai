@@ -1,0 +1,18 @@
+vendor: "Fanuc"
+protocol: "FOCAS"
+driver_id: "fanuc_focas_3_1"
+version: "3.1.12"
+supported_models:
+  - "Oi-MD"
+  - "Oi-TD"
+  - "31i-Model B"
+supported_firmware:
+  - "65xx Series"
+  - "92xx Series"
+required_options:
+  - "Ethernet/IP"
+limitations:
+  - "Max 5 concurrent connections"
+supported_signatures:
+  - ports: [8193]
+    mac_oui_prefixes: ["00:E0:4C"] # Realtek/Fanuc NICs

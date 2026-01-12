@@ -1,0 +1,19 @@
+{
+  "manifest_version": "1.0.0",
+  "generated_at": "2026-01-12T12:02:13.710933Z",
+  "drivers": [
+    {
+      "driver_id": "fanuc",
+      "version": "1.0.0",
+      "channel": "prod",
+      "sha256": "d242af3a8c2040d95a010dc3829b4d13926c58b847c22b851262f1d3e23ae6d3",
+      "url": "http://localhost:8088/drivers/fanuc/1.0.0/driver.zip",
+      "entrypoint": "driver:FanucDriver",
+      "supported_vendors": [
+        "Fanuc"
+      ],
+      "python": ">=3.11",
+      "artifact_path": "driver_hub/drivers/fanuc/1.0.0/driver.zip"
+    }
+  ]
+}

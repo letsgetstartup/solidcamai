@@ -1,0 +1,27 @@
+rules:
+  - id: RULE_SPINDLE_LOAD_THRESHOLD
+    name: "Spindle Load Threshold Breach"
+    type: "threshold"
+    metric: "spindle_load_pct"
+    operator: ">"
+    value: 90.0
+    duration_sec: 0  # Instant for now
+    severity: "HIGH"
+    event_type: "ANOMALY_DETECTED"
+
+  - id: RULE_STATE_CHANGE_STRICT
+    name: "Machine Stopped Alert"
+    type: "state_change"
+    from: "RUNNING"
+    to: "STOPPED"
+    severity: "MEDIUM"
+    event_type: "STATE_ALARM"
+
+  - id: RULE_BUFFER_HEALTH
+    name: "Critical Buffer Depth"
+    type: "threshold"
+    metric: "buffer_depth"
+    operator: ">"
+    value: 5000
+    severity: "CRITICAL"
+    event_type: "DEVICE_UNHEALTHY"

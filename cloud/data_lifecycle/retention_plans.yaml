@@ -1,0 +1,21 @@
+retention_plans:
+  pilot:
+    telemetry_raw: 30
+    telemetry_hourly: 180
+    telemetry_daily: 730
+    events: 180
+  standard:
+    telemetry_raw: 90
+    telemetry_hourly: 365
+    telemetry_daily: 1095
+    events: 365
+  enterprise:
+    telemetry_raw: 180
+    telemetry_hourly: 730
+    telemetry_daily: 1825
+    events: 730
+
+# Overrides for specific high-priority tenants
+tenant_overrides:
+  "tenant_priority_01": "enterprise"
+  "tenant_demo": "pilot"

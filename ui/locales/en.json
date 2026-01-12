@@ -1,0 +1,21 @@
+{
+    "__direction": "ltr",
+    "app_name": "SIMCO AI Cloud Portal",
+    "nav_dashboard": "Dashboard",
+    "nav_sites": "Sites",
+    "nav_machines": "Machines",
+    "nav_events": "Events",
+    "status_online": "Online",
+    "status_idle": "Idle",
+    "status_offline": "Offline",
+    "status_active": "Active",
+    "machine_state": "Machine State",
+    "machine_metrics": "Metrics",
+    "event_timeline": "Event Timeline",
+    "last_seen": "Last Seen",
+    "buffer_depth": "Buffer Depth",
+    "login_title": "Industrial Gateway Login",
+    "login_button": "Enter Secure Portal",
+    "select_site": "Select Site",
+    "select_tenant": "Select Tenant"
+}

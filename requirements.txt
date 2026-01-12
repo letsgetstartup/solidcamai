@@ -5,3 +5,4 @@ pydantic
 pydantic-settings
 aiofiles
 google-cloud-bigquery
+PyYAML>=6.0

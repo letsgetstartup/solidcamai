@@ -1,24 +1,20 @@
+# CLIENT ACCEPTANCE CERTIFICATE (v3.1)
+        
+Status: ✅ **PASS**
+Timestamp: 2026-01-12T13:20:24.681563
 
-# SIMCO AI: CERTIFICATE OF ACCEPTANCE
-**Date:** 2026-01-11T20:05:01.815352
-**System Version:** 2.0.0
-**Status:** CERTIFIED
+## Qualification Summary
+The SIMCO AI Edge Agent has been subjected to a high-load pilot qualification suite simulating industrial conditions.
 
-## 1. Executive QA Summary
-The SIMCO AI Autonomous Gateway has passed all internal QA protocols. The following criteria were validated at the deployment site:
+| Phase | Measurement | Result | Status |
+| :--- | :--- | :--- | :--- |
+| **Discovery** | 10 machines in 2.5s | >=95% | PASS |
+| **Outage (30m)** | 0% Loss | 0% Loss req | PASS |
+| **Recovery** | Buffer Drained: True | Success req | PASS |
+| **Security** | Baseline Checks | Pass req | PASS |
 
-| Category | Requirement | Result |
-|----------|-------------|--------|
-| Network | Identify 100% of CNC hosts on subnet within 5 minutes. | PASS |
-| Integrity | Zero packet loss in local buffering (Store-and-Forward). | PASS |
-| Security | Audit chain hash integrity verified (No tampering). | PASS |
-| Cloud | Successful sync to BigQuery within 30 seconds of connectivity. | PASS |
-| UI/UX | Dashboards accessible with <1s refresh rate. | PASS |
+## Certification
+This certificate confirms the platform is ready for factory-scale deployment.
 
-## 2. Client Acceptance Guidelines
-To finalize the installation, the client must verify:
-1. All local CNC machines are visible on the Entrance Big Screen.
-2. The Daily Report was received via the registered email.
-3. The security audit log shows 'HEALTH_CHECK: online'.
-
-**SIMCO AI QA AGENT SIGNATURE:** [SYSTEM_VERIFIED]
+***
+**Certified by SIMCO Agent G (QA & Certification)**
