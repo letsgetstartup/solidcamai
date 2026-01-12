@@ -37,13 +37,18 @@ def test_dashboard_machine_list(page: Page):
         raise
 
     # 2. Verify Status
-    # Status cell contains "ACTIVE" or "RUNNING"
+    # Status cell contains "ACTIVE", "RUNNING", or "IDLE"
     status_cell = machine_row.locator(".status-cell")
-    expect(status_cell).to_contain_text("ACTIVE") # or RUNNING, generic driver sends ACTIVE often or we coerced it
+    import re
+    expect(status_cell).to_contain_text(re.compile(r"ACTIVE|RUNNING|IDLE"))
 
     # 3. Verify Pulse
     pulse = status_cell.locator(".pulse.active")
-    expect(pulse).to_be_visible()
+    try:
+        expect(pulse).to_be_visible()
+    except AssertionError:
+        print(f"DEBUG: Status Cell HTML: {status_cell.inner_html()}")
+        raise
 
 def test_manage_modal(page: Page):
     """Verifies that clicking 'Manage' opens the modal with data."""

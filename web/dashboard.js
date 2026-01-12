@@ -91,7 +91,7 @@ async function loadMachines() {
                 <td>${m.ip || '---'}</td>
                 <td>
                     <div class="status-cell">
-                        <div class="pulse ${m.status === 'ACTIVE' ? 'active' : ''}"></div>
+                        <div class="pulse ${['ACTIVE', 'RUNNING'].includes((m.status || '').trim()) ? 'active' : ''}"></div>
                         ${m.status || 'UNKNOWN'}
                     </div>
                 </td>
