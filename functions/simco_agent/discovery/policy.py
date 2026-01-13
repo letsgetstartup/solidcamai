@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Dict, Union
+from typing import List, Optional
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -9,20 +9,7 @@ class DiscoveryPolicy(BaseModel):
     active_enabled: bool = True
     active_rate_limit_pps: int = 10
     allowed_subnets: List[str] = []
-    # port_probes: can be dict {protocol: [ports]} OR legacy list [ports]
-    port_probes: Union[Dict[str, List[int]], List[int]] = {
-        "fanuc_focas": [8193],
-        "modbus": [502],
-        "opcua": [4840],
-        "mtconnect": [7878],
-        "ethernetip": [44818]
-    }
-
-    def get_normalized_port_map(self) -> Dict[str, List[int]]:
-        """Returns port probes as a strictly typed dict."""
-        if isinstance(self.port_probes, list):
-            return {"generic": self.port_probes}
-        return self.port_probes
+    port_probes: List[int] = [8193, 502, 44818] # Fanuc, Modbus, Ethernet/IP
 
     def is_active_allowed(self) -> bool:
         if self.mode == "manual_only" or self.mode == "passive":

@@ -42,3 +42,6 @@ test_driver.zip.sig
 machine_registry.json
 driver_hub/drivers/
 driver_hub/manifest.json
+
+# Databases
+*.db

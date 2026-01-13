@@ -6,6 +6,7 @@ import os
 import json
 import logging
 from datetime import datetime
+from typing import Optional
 
 # Add root directory to sys.path to allow imports from simco_common
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

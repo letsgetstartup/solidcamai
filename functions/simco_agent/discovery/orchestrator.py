@@ -39,13 +39,9 @@ class DiscoveryOrchestrator:
         if self.policy.is_active_allowed():
             # Extract subnets from policy or default to common local ranges if empty
             subnets = self.policy.allowed_subnets or [settings.SCAN_SUBNET]
-            
-            # Use normalized port dictionary
-            port_map = self.policy.get_normalized_port_map()
-            
             active_results = discover_active(
                 subnets=subnets,
-                port_map=port_map,
+                ports=self.policy.port_probes,
                 rate_limit_pps=self.policy.active_rate_limit_pps
             )
             # Merge while avoiding duplicates (prefer active for higher confidence)
@@ -63,40 +59,6 @@ class DiscoveryOrchestrator:
         
         return all_candidates
 
-    async def run_fingerprinting(self, candidates: List[Dict[str, Any]]) -> List[Any]:
-        """Runs async fingerprinting on candidates."""
-        from .fingerprinting import FingerprintOrchestrator
-        fp_orch = FingerprintOrchestrator()
-        return await fp_orch.run(candidates)
-
-    def save_fingerprints(self, fingerprints: List[Any]):
-        """Updates registry with confirmed fingerprints."""
-        if not fingerprints:
-            return
-
-        from dataclasses import asdict
-        registry = load_registry(self.registry_path)
-        existing = {m["ip"]: i for i, m in enumerate(registry)}
-        updates = 0
-
-        for fp in fingerprints:
-            if fp.ip in existing:
-                idx = existing[fp.ip]
-                # Update metadata
-                meta = registry[idx].get("metadata", {})
-                meta["fingerprint"] = asdict(fp)
-                # If confidence high, we can promote status
-                if fp.confidence > 0.8:
-                    registry[idx]["status"] = "IDENTIFIED"
-                    registry[idx]["vendor"] = fp.vendor or registry[idx].get("vendor")
-                
-                registry[idx]["metadata"] = meta
-                updates += 1
-        
-        if updates > 0:
-            save_registry(registry, self.registry_path)
-            logger.info(f"Orchestrator: Updated {updates} machines with fingerprints")
-
     def _update_registry(self, candidates: List[Dict[str, Any]]):
         registry = load_registry(self.registry_path)
         existing = {m["ip"]: i for i, m in enumerate(registry)}
@@ -104,38 +66,19 @@ class DiscoveryOrchestrator:
         # Use IP as machine_id if unknown
         for c in candidates:
             ip = c["ip"]
-            # Extract protocols from candidates if present
-            protocols = []
-            if "protocol_candidates" in c:
-                for pc in c["protocol_candidates"]:
-                    protocols.extend(pc.get("protocols", []))
-            protocols = list(set(protocols))
-
             if ip not in existing:
-                entry = {
+                registry.append({
                     "machine_id": ip,
                     "ip": ip,
                     "vendor": c.get("vendor", "UNKNOWN"),
                     "status": "DISCOVERED",
                     "source": c["source"],
                     "last_seen": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                }
-                if protocols:
-                    entry["metadata"] = entry.get("metadata", {})
-                    entry["metadata"]["protocols"] = protocols
-                
-                registry.append(entry)
+                })
             else:
                 idx = existing[ip]
                 registry[idx]["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 registry[idx]["status"] = "REACHABLE"
-                # Update metadata if we found new protocols
-                if protocols:
-                    meta = registry[idx].get("metadata", {})
-                    current_protos = set(meta.get("protocols", []))
-                    current_protos.update(protocols)
-                    meta["protocols"] = list(current_protos)
-                    registry[idx]["metadata"] = meta
 
         save_registry(registry, self.registry_path)
         logger.info(f"Orchestrator: Machine registry updated with {len(candidates)} candidates")
