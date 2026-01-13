@@ -6,3 +6,15 @@ pydantic-settings
 aiofiles
 google-cloud-bigquery
 PyYAML>=6.0
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+greenlet # required for sqlalchemy async
+httpx # required for TestClient
+cryptography
+python-jose
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+opentelemetry-exporter-otlp

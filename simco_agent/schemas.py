@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Dict, Any
 from datetime import datetime
-from simco_common.schemas_v3 import TelemetryRecord, StatusEnum
+from simco_common.schemas_v3 import TelemetryRecordV3 as TelemetryRecord, StatusEnum
 
 class MachineInfo(BaseModel):
     ip: str
