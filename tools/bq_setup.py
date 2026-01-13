@@ -109,5 +109,49 @@ def setup_bigquery():
     """)
     print("-------------------------------------\n")
 
+    # 6. ERP Raw Table
+    erp_raw_ref = dataset_ref.table("erp_raw")
+    erp_raw_schema = [
+        bigquery.SchemaField("tenant_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("source_system", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("connection_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("entity", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("source_pk", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("source_updated_at", "TIMESTAMP", mode="NULLABLE"),
+        bigquery.SchemaField("ingest_ts", "TIMESTAMP", mode="REQUIRED"),
+        bigquery.SchemaField("payload", "JSON", mode="NULLABLE")
+    ]
+    try:
+        client.get_table(erp_raw_ref)
+        logger.info("Table erp_raw exists.")
+    except NotFound:
+        table = bigquery.Table(erp_raw_ref, schema=erp_raw_schema)
+        table.time_partitioning = bigquery.TimePartitioning(type_=bigquery.TimePartitioningType.DAY, field="ingest_ts")
+        table.clustering_fields = ["tenant_id", "source_system", "entity", "source_pk"]
+        client.create_table(table)
+        logger.info("Created table erp_raw.")
+
+    # 7. ERP Machine Map Table
+    map_ref = dataset_ref.table("erp_machine_map")
+    map_schema = [
+        bigquery.SchemaField("tenant_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("site_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("machine_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("erp_system", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("erp_resource_code", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("valid_from", "TIMESTAMP", mode="NULLABLE"),
+        bigquery.SchemaField("valid_to", "TIMESTAMP", mode="NULLABLE"),
+        bigquery.SchemaField("created_by_user_id", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED"),
+    ]
+    try:
+        client.get_table(map_ref)
+        logger.info("Table erp_machine_map exists.")
+    except NotFound:
+        table = bigquery.Table(map_ref, schema=map_schema)
+        table.clustering_fields = ["tenant_id", "site_id", "machine_id"]
+        client.create_table(table)
+        logger.info("Created table erp_machine_map.")
+
 if __name__ == "__main__":
     setup_bigquery()

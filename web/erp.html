@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIMCO AI | ERP Integration</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header style="padding:20px;">
+        <h1>ERP Integration</h1>
+        <p>Connect your ERP and import data into BigQuery for joined analytics.</p>
+        <a class="cta-button" href="dashboard.html">Back to Dashboard</a>
+    </header>
+
+    <section style="padding:20px; max-width:900px;">
+        <h2>Create SAP Business One Connection</h2>
+
+        <div class="card" style="padding:20px;">
+            <label>Tenant ID</label>
+            <input id="tenant_id" value="tenant_demo" style="width:100%; margin-bottom:10px;" />
+
+            <label>Display Name</label>
+            <input id="display_name" value="SAP B1 - Main" style="width:100%; margin-bottom:10px;" />
+
+            <label>Base URL</label>
+            <input id="base_url" placeholder="https://sapb1.company.com:50000"
+                style="width:100%; margin-bottom:10px;" />
+
+            <label>Company DB</label>
+            <input id="company_db" placeholder="SBODEMOUS" style="width:100%; margin-bottom:10px;" />
+
+            <label>Username</label>
+            <input id="username" style="width:100%; margin-bottom:10px;" />
+
+            <label>Password</label>
+            <input id="password" type="password" style="width:100%; margin-bottom:10px;" />
+
+            <button class="cta-button" id="create_btn">Create Connection</button>
+        </div>
+
+        <h2 style="margin-top:30px;">Connections</h2>
+        <div id="connections"></div>
+    </section>
+
+    <script type="module" src="erp.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIMCO AI | Machine Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header style="padding:20px;">
+        <h1>Machine Fleet & QR Management</h1>
+        <a class="cta-button" href="dashboard.html">Back to Dashboard</a>
+    </header>
+
+    <section style="padding:20px; max-width:900px;">
+        <div class="card" style="padding:20px; margin-bottom: 20px;">
+            <label>Tenant ID</label>
+            <input id="tenant_id" value="tenant_demo" style="margin-right:10px;">
+            <label>Site ID</label>
+            <input id="site_id" value="site_demo" style="margin-right:10px;">
+            <button class="cta-button" id="load_btn">Load Machines</button>
+        </div>
+
+        <div id="machine_list">
+            <!-- Machines injected here -->
+        </div>
+    </section>
+
+    <!-- QR Modal -->
+    <div id="qr_modal"
+        style="display:none; position:fixed; top:20%; left:50%; transform:translate(-50%,0); background:#222; border:1px solid #444; padding:20px; border-radius:8px; width:300px; text-align:center;">
+        <h3 id="qr_title">Machine QR</h3>
+        <div id="qr_img_container" style="background:white; padding:10px; margin:10px auto; width:170px;"></div>
+        <p id="qr_code_text" style="font-family:monospace; color:#ccc;"></p>
+        <button class="cta-button" onclick="document.getElementById('qr_modal').style.display='none'">Close</button>
+        <button class="cta-button" id="print_btn">Print</button>
+    </div>
+
+    <script type="module" src="machines.js"></script>
+</body>
+
+</html>

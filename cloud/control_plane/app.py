@@ -49,6 +49,9 @@ class GatewayResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup():
+    # Ensure ERP models are imported before create_all
+    from . import models_erp  # noqa: F401
+    from . import models_qr   # noqa: F401
     await init_db()
     
     # OpenTelemetry Setup
@@ -145,6 +148,11 @@ async def read_site(site_id: str, db: AsyncSession = Depends(get_db)):
     if db_site is None:
         raise HTTPException(status_code=404, detail="Site not found")
     return db_site
+
+from .router_erp import router as erp_router
+app.include_router(erp_router)
+from .router_qr import router as qr_router
+app.include_router(qr_router)
 
 @app.post("/gateways", response_model=GatewayResponse)
 async def create_gateway(gateway: GatewayCreate, db: AsyncSession = Depends(get_db)):

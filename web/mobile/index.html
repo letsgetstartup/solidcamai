@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SIMCO Operator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2D373C">
+</head>
+
+<body>
+
+    <div id="app">
+        <header>
+            <div id="header-left">SIMCO AI</div>
+            <div id="status_indicator">Online</div>
+        </header>
+
+        <main id="main-view">
+            <!-- Dynamic Content -->
+        </main>
+    </div>
+
+    <!-- Templates -->
+
+    <!-- 1. LOGIN -->
+    <template id="tmpl-login">
+        <div style="padding: 40px 20px;">
+            <h2 class="text-center">Operator Login</h2>
+            <input type="text" id="login-username" placeholder="User ID / Badge">
+            <input type="password" id="login-password" placeholder="PIN / Password">
+            <button class="btn-primary" id="btn-login">Sign In</button>
+            <p class="text-error hidden" id="login-error"></p>
+        </div>
+    </template>
+
+    <!-- 2. HOME -->
+    <template id="tmpl-home">
+        <div class="text-center" style="margin-top: 20px;">
+            <h2>Good Morning, <span id="user-name">Operator</span></h2>
+            <p>Select an action to begin.</p>
+        </div>
+
+        <div style="margin-top: 40px;">
+            <button class="btn-primary" id="btn-scan" style="font-size: 1.2rem; padding: 30px;">
+                <span style="display:block; font-size: 2rem; margin-bottom: 10px;">📷</span>
+                SCAN MACHINE
+            </button>
+
+            <div style="margin-top: 20px;" class="card">
+                <h3>Offline Queue <span id="queue-count" class="queue-badge">0</span></h3>
+                <div id="queue-list" style="font-size: 0.9rem; color: #666;">No pending items</div>
+                <button id="btn-sync" class="btn-secondary">Sync Now</button>
+            </div>
+
+            <button class="btn-secondary" id="btn-logout">Logout</button>
+        </div>
+    </template>
+
+    <!-- 3. SCAN (Scanner or Manual) -->
+    <template id="tmpl-scan">
+        <div class="text-center">
+            <h2>Scan Machine QR</h2>
+            <div id="qr-reader" style="width: 100%; height: 300px; background: #000; margin-bottom: 20px;"></div>
+            <p>Or enter manual code:</p>
+            <input type="text" id="manual-code" placeholder="Manual Code (e.g. A9F3...)">
+            <button class="btn-primary" id="btn-resolve">Go</button>
+            <button class="btn-secondary" id="btn-back-home">Back</button>
+        </div>
+    </template>
+
+    <!-- 4. MACHINE CONTEXT -->
+    <template id="tmpl-machine">
+        <div class="card">
+            <h2 id="machine-name">Machine ???</h2>
+            <div style="display:flex; justify-content:space-between;">
+                <span id="machine-status" style="font-weight:bold;">IDLE</span>
+                <span id="machine-last-seen" style="color:#888;">Just now</span>
+            </div>
+        </div>
+
+        <h3>Actions</h3>
+        <div class="tile-grid">
+            <button class="btn-tile" data-action="downtime">Report<br>Downtime</button>
+            <button class="btn-tile" data-action="quality">Quality<br>Issue</button>
+            <button class="btn-tile" data-action="maintenance">Maintenance<br>Request</button>
+            <button class="btn-tile" data-action="job">Job<br>Status</button>
+        </div>
+
+        <button class="btn-secondary" id="btn-leave-machine">Exit Machine Context</button>
+    </template>
+
+    <!-- 5. GENERIC FORM -->
+    <template id="tmpl-form">
+        <h2 id="form-title">Form</h2>
+        <div id="form-fields"></div>
+        <button class="btn-primary" id="btn-submit">Submit Report</button>
+        <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    </template>
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script type="module" src="app.js"></script>
+
+</body>
+
+</html>
