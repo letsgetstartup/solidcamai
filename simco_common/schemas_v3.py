@@ -52,21 +52,40 @@ class QualityMetrics(BaseModel):
     source_clock_skew_ms: Optional[float] = None
     sample_period_ms: Optional[float] = None
 
-class TelemetryRecordV3(BaseModel):
-    """
-    The 'Golden Record' for Siemens-level telemetry.
-    """
-    record_id: str = Field(..., description="UUID v4 idempotency key")
-    ts_utc: str = Field(..., description="RFC3339 timestamp")
+class TelemetryRecord(BaseModel):
+    record_id: str = Field(..., description="Deterministic record ID for idempotency")
     tenant_id: str
     site_id: str
-    gateway_id: str
     machine_id: str
-    driver_id: str
-    quality: Optional[QualityMetrics] = None
+    device_id: Optional[str] = Field(None, description="Edge Gateway Identity")
+    timestamp: str # RFC3339/ISO8601
+    status: StatusEnum
     metrics: Dict[str, Union[float, int, str, bool]] = Field(default_factory=dict)
+    driver: Optional[DriverInfo] = None
 
-    @field_validator("ts_utc")
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, v):
+        try:
+            # Simple RFC3339/ISO8601 check
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("Invalid timestamp format. Expected RFC3339.")
+        return v
+
+class EventRecord(BaseModel):
+    event_id: str = Field(..., description="Deterministic event ID for idempotency")
+    tenant_id: str
+    site_id: str
+    machine_id: str
+    device_id: Optional[str] = Field(None, description="Edge Gateway Identity")
+    actor_user_id: Optional[str] = Field(None, description="User who triggered this event")
+    timestamp: str
+    type: EventTypeEnum
+    severity: SeverityEnum
+    details: Dict[str, Any]
+
+    @field_validator("timestamp")
     @classmethod
     def validate_timestamp(cls, v):
         try:

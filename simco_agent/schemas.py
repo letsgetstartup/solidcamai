@@ -22,11 +22,17 @@ class TelemetryPayload(BaseModel):
     
     def to_v3_record(self, tenant_id: str, site_id: str, device_id: str) -> Dict[str, Any]:
         """Convert legacy payload to v3 TelemetryRecord dict."""
+        import hashlib
+        # Deterministic ID based on identity + timestamp + metric snapshot
+        raw_sig = f"{tenant_id}:{site_id}:{self.machine_id}:{self.timestamp.isoformat()}:{self.spindle_load}"
+        rec_id = hashlib.sha256(raw_sig.encode()).hexdigest()
+        
         return {
-            "record_id": "", # To be filled by uplink or ingestion
+            "record_id": rec_id,
             "tenant_id": tenant_id,
             "site_id": site_id,
             "machine_id": self.machine_id,
+            "device_id": device_id,
             "timestamp": self.timestamp.isoformat(),
             "status": self.status if self.status in StatusEnum.__members__ else "UNKNOWN",
             "metrics": {

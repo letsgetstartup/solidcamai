@@ -90,6 +90,25 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
         # 2. Idempotency & Routing & Hot-Path Publishing
         ingested_ids = []
         import asyncio
+        import os
+        
+        # Cold Path: BigQuery Insert
+        bq = get_bq_client()
+        dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+        table = f"{dataset}.raw_telemetry"
+        
+        # Transform for BQ (flatten or use JSON column)
+        # Using raw `insert_rows_json` for simplicity in MVP
+        rows_to_insert = [r.model_dump(mode='json') for r in payload.records]
+        
+        # In PROD: Use Storage Write API for high throughput.
+        # Here: Streaming API
+        errors = bq.insert_rows_json(table, rows_to_insert)
+        if errors:
+            logger.error(f"BQ Insert Errors: {errors}")
+            # We might still want to proceed to Hot Path, or partial fail?
+            # For strict warehouse, this is an issue.
+            
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -97,9 +116,6 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
             asyncio.set_event_loop(loop)
 
         for record in payload.records:
-            # Cold Path Simulation
-            logger.debug(f"Cold Path: Syncing {record.record_id} to BigQuery.")
-            
             # Hot Path: Publish to Processing Bus (Expansion Task 1)
             record_data = record.model_dump()
             
@@ -125,6 +141,53 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
         from simco_agent.observability.metrics import cloud_metrics
         cloud_metrics.counter("cloud.ingest.rejected_count", 1, labels={"reason": "exception"})
         return https_fn.Response(json.dumps({"status": "ERROR", "message": str(e)}), status=400, mimetype="application/json")
+
+@https_fn.on_request()
+def ingest_events(req: https_fn.Request) -> https_fn.Response:
+    """Ingest Events to BigQuery + Hot Path."""
+    if req.method != 'POST': return https_fn.Response('POST only', status=405)
+    
+    # Needs Schema for Batch? Or single? Let's assume Batch for consistency
+    # For now, simple list of records
+    data = req.get_json()
+    if not isinstance(data, list):
+         data = [data]
+         
+    bq = get_bq_client()
+    dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+    table = f"{dataset}.raw_events"
+    
+    # Flatten/Validate
+    rows = []
+    # TODO: Validate with EventRecord schema
+    rows = data # naive pass-through for MVP, ideally use schemas_v3.EventRecord
+    
+    errors = bq.insert_rows_json(table, rows)
+    if errors:
+        logger.error(f"Event BQ Insert Failed: {errors}")
+        return https_fn.Response(json.dumps({"status": "PARTIAL_ERROR", "errors": errors}), status=500)
+        
+    # Hot Path for Events (Alerts)
+    # ... processor.process_event(...)
+    
+    return https_fn.Response(json.dumps({"status": "SUCCESS", "count": len(rows)}), mimetype="application/json")
+
+@https_fn.on_request()
+def ingest_assets(req: https_fn.Request) -> https_fn.Response:
+    """Ingest Asset metadata updates."""
+    if req.method != 'POST': return https_fn.Response('POST only', status=405)
+    data = req.get_json()
+    
+    bq = get_bq_client()
+    dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+    table = f"{dataset}.assets_current"
+    # This might need MERGE logic (update if exists). 
+    # insert_rows_json checks streaming buffer. 
+    # Standard pattern: Insert to raw, materialize view dedupes.
+    
+    errors = bq.insert_rows_json(table, [data] if not isinstance(data, list) else data)
+    
+    return https_fn.Response(json.dumps({"status": "SUCCESS"}), mimetype="application/json")
 
 @https_fn.on_request()
 def heartbeat(req: https_fn.Request) -> https_fn.Response:

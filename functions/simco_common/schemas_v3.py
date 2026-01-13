@@ -32,6 +32,7 @@ class TelemetryRecord(BaseModel):
     tenant_id: str
     site_id: str
     machine_id: str
+    device_id: Optional[str] = Field(None, description="Edge Gateway Identity")
     timestamp: str # RFC3339/ISO8601
     status: StatusEnum
     metrics: Dict[str, Union[float, int, str, bool]]
@@ -42,6 +43,8 @@ class EventRecord(BaseModel):
     tenant_id: str
     site_id: str
     machine_id: str
+    device_id: Optional[str] = Field(None, description="Edge Gateway Identity")
+    actor_user_id: Optional[str] = Field(None, description="User who triggered this event")
     timestamp: str
     type: EventTypeEnum
     severity: SeverityEnum
