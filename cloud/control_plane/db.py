@@ -77,6 +77,16 @@ class DriverMetadata(Base):
     shasum = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class DisplayDevice(Base):
+    __tablename__ = "display_devices"
+    display_id = Column(String, primary_key=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False)
+    site_id = Column(String, ForeignKey("sites.site_id"), nullable=False)
+    name = Column(String)
+    token_hash = Column(String, unique=True, nullable=False)
+    enabled = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # --- Database Connection ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./control_plane.db")
 

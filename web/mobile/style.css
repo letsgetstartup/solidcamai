@@ -1,26 +1,35 @@
 :root {
-    --primary: #009999;
-    /* Siemens Petrol/Teal */
-    --primary-dark: #007676;
-    --accent: #FFD100;
-    /* Safety Yellow */
-    --bg: #F4F4F4;
-    --surface: #FFFFFF;
-    --text: #1C1C1C;
-    --text-sec: #555555;
-    --error: #C00;
-    --success: #28a745;
+    --bg: #0b0f14;
+    --panel: #111824;
+    --panel2: #0f1520;
+    --text: #e7eefc;
+    --muted: #a9b7d0;
+    --ok: #19c37d;
+    --warn: #ffb020;
+    --bad: #ff3b30;
+    --tile: #121b28;
+    --border: rgba(255, 255, 255, 0.10);
+
+    /* Mapped for mobile placeholders */
+    --primary: var(--ok);
+    --primary-dark: #128f5a;
+    --accent: var(--warn);
+    --error: var(--bad);
+    --surface: var(--panel);
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
     background-color: var(--bg);
     color: var(--text);
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
     user-select: none;
-    /* App-like feel */
 }
 
 /* App Shell */
@@ -29,33 +38,38 @@ body {
     flex-direction: column;
     height: 100vh;
     max-width: 600px;
-    /* Tablet constraint */
     margin: 0 auto;
-    background: var(--surface);
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    background: var(--bg);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Header */
 header {
-    background: #2D373C;
-    /* Dark Industrial */
-    color: white;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
     padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 50px;
+    height: 60px;
 }
 
 header h1 {
     margin: 0;
     font-size: 1.2rem;
-    font-weight: 600;
+    font-weight: 800;
+    letter-spacing: 0.5px;
 }
 
 #status_indicator {
-    font-size: 0.8rem;
-    opacity: 0.8;
+    font-size: 0.9rem;
+    color: var(--ok);
+    font-weight: bold;
+    border: 1px solid rgba(25, 195, 125, 0.4);
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: rgba(25, 195, 125, 0.1);
 }
 
 /* Main Content Area */
@@ -68,12 +82,23 @@ main {
 
 /* Cards & Tiles */
 .card {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+h2,
+h3 {
+    margin-top: 0;
+    font-weight: 800;
+    color: var(--text);
+}
+
+h3 {
+    font-size: 1.1rem;
+    color: var(--muted);
 }
 
 /* Big Buttons (Industrial Touch Targets) */
@@ -82,26 +107,24 @@ main {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 8px;
+    background: var(--tile);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 16px;
     padding: 20px;
     margin: 10px;
     width: calc(50% - 20px);
-    /* 2 per row */
-    height: 120px;
+    height: 130px;
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 800;
     text-align: center;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.1s, background 0.1s;
 }
 
 .btn-tile:active {
     transform: scale(0.98);
-    background: var(--primary-dark);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .tile-grid {
@@ -112,31 +135,47 @@ main {
 
 .btn-primary {
     width: 100%;
-    padding: 15px;
-    background: var(--primary);
-    color: white;
+    padding: 18px;
+    background: var(--ok);
+    /* Green like 'success' or brand */
+    color: #fff;
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    font-weight: bold;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 900;
     text-transform: uppercase;
     cursor: pointer;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(25, 195, 125, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+    opacity: 0.9;
 }
 
 .btn-secondary {
     width: 100%;
-    padding: 15px;
-    background: #e0e0e0;
-    color: #333;
-    border: none;
-    border-radius: 4px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     font-size: 1rem;
-    margin-top: 10px;
+    font-weight: 800;
+    margin-top: 12px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.btn-secondary:active {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .btn-danger {
-    background: var(--error);
+    background: var(--bad);
     color: white;
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
 }
 
 /* Inputs */
@@ -144,19 +183,30 @@ input,
 select,
 textarea {
     width: 100%;
-    padding: 12px;
+    padding: 16px;
     font-size: 1.1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-bottom: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
     box-sizing: border-box;
+    color: var(--text);
+    font-family: inherit;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--ok);
 }
 
 label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: var(--text-sec);
+    margin-bottom: 8px;
+    font-weight: 800;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Utility */
@@ -169,16 +219,17 @@ label {
 }
 
 .text-error {
-    color: var(--error);
+    color: var(--bad);
+    font-weight: bold;
 }
 
 /* Queue Badge */
 .queue-badge {
-    background: var(--accent);
+    background: var(--warn);
     color: #000;
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    margin-left: 5px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    font-weight: 900;
+    margin-left: 8px;
 }

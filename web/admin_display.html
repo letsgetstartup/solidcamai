@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMCO AI | Display Management</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        .token-display {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .token-val {
+            font-family: monospace;
+            color: #19c37d;
+            word-break: break-all;
+        }
+
+        .url-val {
+            color: #ffb020;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body class="dashboard-body">
+    <nav class="dash-nav">
+        <div class="logo-group">
+            <img src="assets/simco_ai_hero_logo.png" alt="SIMCO AI" class="nav-logo">
+            <span>Display Management</span>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="auth-card">
+            <h2>Create New Wallboard Display</h2>
+            <p>Generate a secure token for an 85" shop floor screen.</p>
+            <form id="display-form">
+                <input type="text" id="disp-name" placeholder="Display Name (e.g. Entrance Gate 1)" required>
+                <input type="text" id="disp-tenant" placeholder="Tenant ID" value="tenant_demo" required>
+                <input type="text" id="disp-site" placeholder="Site ID" value="site_demo" required>
+                <button type="submit" class="cta-button">Generate Display Link</button>
+            </form>
+
+            <div id="token-section" class="token-display">
+                <h3>Display Created Successfully</h3>
+                <p>Config Link (Open on Wallboard Screen):</p>
+                <div class="url-val"><a id="wallboard-link" href="#" target="_blank">Link</a></div>
+                <p style="margin-top:15px;">Display Token (Secret):</p>
+                <div class="token-val" id="token-val"></div>
+                <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
+                    Warning: This token is only shown once. Copy it now.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script src="admin_display.js"></script>
+</body>
+
+</html>

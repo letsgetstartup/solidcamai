@@ -9,7 +9,7 @@ const auth = getAuth(app);
 // Dev Mode Configuration (Moved to top)
 const urlParams = new URLSearchParams(window.location.search);
 const isDev = urlParams.get('dev') === '1';
-const API_BASE = isDev ? "http://127.0.0.1:8081" : "https://us-central1-solidcamal.cloudfunctions.net";
+const API_BASE = isDev ? "http://127.0.0.1:8081" : "https://portal-api-i6yvrrps6q-uc.a.run.app";
 const DEV_HEADERS = {
     "X-Dev-Role": "Manager",
     "X-Dev-Tenant": "tenant_demo",
@@ -42,7 +42,7 @@ if (isDev) {
             dashboardSection.style.display = 'block';
             logoutBtn.style.display = 'block';
             userEmailSpan.textContent = user.email;
-            loadMachines();
+            loadMachines(user);
         } else {
             // User is signed out
             authSection.style.display = 'block';
@@ -76,28 +76,53 @@ logoutBtn.addEventListener('click', () => {
 
 
 // Mock Machine Data for Visual Discovery
-async function loadMachines() {
+async function loadMachines(user) {
     try {
         const url = `${API_BASE}/portal_api/v1/tenants/tenant_demo/sites/site_demo/machines`;
-        const headers = isDev ? DEV_HEADERS : {};
-        const res = await fetch(url, { headers });
-        const machines = await res.json();
+        let headers = {};
 
-        machineList.innerHTML = machines.map(m => `
+        if (isDev) {
+            headers = DEV_HEADERS;
+        } else if (user) {
+            const token = await user.getIdToken();
+            headers = { 'Authorization': `Bearer ${token}` };
+        } else if (auth.currentUser) {
+            const token = await auth.currentUser.getIdToken();
+            headers = { 'Authorization': `Bearer ${token}` };
+        }
+
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+        }
+        let machines = await res.json();
+
+        // Deduplicate machines by machine_id (Fix for 10 machines limit)
+        const uniqueMachines = new Map();
+        machines.forEach(m => {
+            if (!uniqueMachines.has(m.machine_id)) {
+                uniqueMachines.set(m.machine_id, m);
+            }
+        });
+        machines = Array.from(uniqueMachines.values());
+
+        machineList.innerHTML = machines.map(m => {
+            const isActive = ['ACTIVE', 'RUNNING'].includes((m.status || '').trim());
+            return `
             <tr>
                 <td><img src="assets/${m.machine_id.includes('fanuc') ? 'fanuc' : 'siemens'}.png" class="machine-img" onerror="this.src='assets/simco_ai_hero_logo.png'"></td>
                 <td><strong>${m.machine_id}</strong></td>
                 <td><code>${m.machine_id}</code></td>
                 <td>${m.ip || '---'}</td>
                 <td>
-                    <div class="status-cell">
-                        <div class="pulse ${['ACTIVE', 'RUNNING'].includes((m.status || '').trim()) ? 'active' : ''}"></div>
+                    <div class="status-pill ${isActive ? 'active' : ''}">
+                        <div class="status-dot"></div>
                         ${m.status || 'UNKNOWN'}
                     </div>
                 </td>
-                <td><button class="cta-button" style="padding: 5px 15px; font-size: 0.8rem;" onclick="openManageModal('${m.machine_id}')">Manage</button></td>
+                <td><button class="btn-manage" onclick="openManageModal('${m.machine_id}')">Manage</button></td>
             </tr>
-        `).join('');
+        `}).join('');
 
         if (machines.length === 0) {
             machineList.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No machines discovered yet.</td></tr>';
@@ -119,7 +144,14 @@ window.openManageModal = async (machineId) => {
     modal.style.display = 'block';
 
     try {
-        const headers = isDev ? DEV_HEADERS : {};
+        let headers = {};
+        if (isDev) {
+            headers = DEV_HEADERS;
+        } else if (auth.currentUser) {
+            const token = await auth.currentUser.getIdToken();
+            headers = { 'Authorization': `Bearer ${token}` };
+        }
+
         // Fetch State
         const stateRes = await fetch(`${API_BASE}/portal_api/v1/tenants/tenant_demo/sites/site_demo/machines/${machineId}/state`, { headers });
         const state = await stateRes.json();

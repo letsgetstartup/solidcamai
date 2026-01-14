@@ -9,33 +9,58 @@
 </head>
 
 <body>
-    <header style="padding:20px;">
-        <h1>Machine Fleet & QR Management</h1>
-        <a class="cta-button" href="dashboard.html">Back to Dashboard</a>
-    </header>
-
-    <section style="padding:20px; max-width:900px;">
-        <div class="card" style="padding:20px; margin-bottom: 20px;">
-            <label>Tenant ID</label>
-            <input id="tenant_id" value="tenant_demo" style="margin-right:10px;">
-            <label>Site ID</label>
-            <input id="site_id" value="site_demo" style="margin-right:10px;">
-            <button class="cta-button" id="load_btn">Load Machines</button>
+    <div class="container" style="padding-top:20px;">
+        <div class="page-header"
+            style="margin-bottom:0px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1 style="margin:0;">QR Management</h1>
+                <p style="margin:5px 0 0 0; color:var(--muted);">Generate and print machine codes</p>
+            </div>
+            <a class="btn-manage" href="dashboard.html"
+                style="text-decoration:none; display:inline-block; text-align:center;">Back to Dashboard</a>
         </div>
 
-        <div id="machine_list">
-            <!-- Machines injected here -->
-        </div>
-    </section>
+        <section>
+            <div class="card" style="display:flex; gap:20px; align-items:center; margin-bottom: 15px;">
+                <div style="flex:1;">
+                    <label>Tenant ID</label>
+                    <input id="tenant_id" value="tenant_demo">
+                </div>
+                <div style="flex:1;">
+                    <label>Site ID</label>
+                    <input id="site_id" value="site_demo">
+                </div>
+                <div style="align-self:flex-end; margin-bottom:24px;"> <!-- Align with inputs -->
+                    <button class="btn-manage" id="load_btn"
+                        style="background:var(--primary); color:black; border:none;">Reload Fleet</button>
+                </div>
+            </div>
+
+            <div id="machine_list">
+                <!-- Machines injected here -->
+            </div>
+        </section>
+    </div>
 
     <!-- QR Modal -->
-    <div id="qr_modal"
-        style="display:none; position:fixed; top:20%; left:50%; transform:translate(-50%,0); background:#222; border:1px solid #444; padding:20px; border-radius:8px; width:300px; text-align:center;">
-        <h3 id="qr_title">Machine QR</h3>
-        <div id="qr_img_container" style="background:white; padding:10px; margin:10px auto; width:170px;"></div>
-        <p id="qr_code_text" style="font-family:monospace; color:#ccc;"></p>
-        <button class="cta-button" onclick="document.getElementById('qr_modal').style.display='none'">Close</button>
-        <button class="cta-button" id="print_btn">Print</button>
+    <div id="qr_modal" class="modal">
+        <div class="modal-content" style="max-width:400px; text-align:center;">
+            <span class="close" onclick="document.getElementById('qr_modal').style.display='none'">&times;</span>
+            <h3 id="qr_title" style="margin-top:0;">Machine QR</h3>
+
+            <div id="qr_img_container"
+                style="background:white; padding:15px; margin:20px auto; width:180px; border-radius:8px;"></div>
+
+            <p id="qr_code_text"
+                style="font-family:monospace; color:var(--muted); background:var(--bg); padding:10px; border-radius:4px; display:inline-block;">
+            </p>
+
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+                <button class="btn-manage" id="print_btn">Print Label</button>
+                <button class="btn-manage" style="background:transparent; border:1px solid var(--border);"
+                    onclick="document.getElementById('qr_modal').style.display='none'">Close</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="machines.js"></script>

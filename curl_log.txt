@@ -1,0 +1,58 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Host portal-api-i6yvrrps6q-uc.a.run.app:443 was resolved.
+* IPv6: (none)
+* IPv4: 34.143.76.2, 34.143.77.2, 34.143.72.2, 34.143.74.2, 34.143.75.2, 34.143.73.2, 34.143.78.2, 34.143.79.2
+*   Trying 34.143.76.2:443...
+* Connected to portal-api-i6yvrrps6q-uc.a.run.app (34.143.76.2) port 443
+* ALPN: curl offers h2,http/1.1
+* (304) (OUT), TLS handshake, Client hello (1):
+} [339 bytes data]
+*  CAfile: /etc/ssl/cert.pem
+*  CApath: none
+* (304) (IN), TLS handshake, Server hello (2):
+{ [122 bytes data]
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* (304) (IN), TLS handshake, Unknown (8):
+{ [15 bytes data]
+* (304) (IN), TLS handshake, Certificate (11):
+{ [6494 bytes data]
+* (304) (IN), TLS handshake, CERT verify (15):
+{ [79 bytes data]
+* (304) (IN), TLS handshake, Finished (20):
+{ [36 bytes data]
+* (304) (OUT), TLS handshake, Finished (20):
+} [36 bytes data]
+* SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256 / [blank] / UNDEF
+* ALPN: server accepted h2
+* Server certificate:
+*  subject: CN=*.a.run.app
+*  start date: Dec  3 15:48:47 2025 GMT
+*  expire date: Feb 25 15:48:46 2026 GMT
+*  subjectAltName: host "portal-api-i6yvrrps6q-uc.a.run.app" matched cert's "*.a.run.app"
+*  issuer: C=US; O=Google Trust Services; CN=WR2
+*  SSL certificate verify ok.
+* using HTTP/2
+* [HTTP/2] [1] OPENED stream for https://portal-api-i6yvrrps6q-uc.a.run.app/portal_api/v1/tenants/tenant_demo/sites/site_demo/bigscreen/summary
+* [HTTP/2] [1] [:method: GET]
+* [HTTP/2] [1] [:scheme: https]
+* [HTTP/2] [1] [:authority: portal-api-i6yvrrps6q-uc.a.run.app]
+* [HTTP/2] [1] [:path: /portal_api/v1/tenants/tenant_demo/sites/site_demo/bigscreen/summary]
+* [HTTP/2] [1] [user-agent: curl/8.6.0]
+* [HTTP/2] [1] [accept: */*]
+> GET /portal_api/v1/tenants/tenant_demo/sites/site_demo/bigscreen/summary HTTP/2
+> Host: portal-api-i6yvrrps6q-uc.a.run.app
+> User-Agent: curl/8.6.0
+> Accept: */*
+> 
+  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0< HTTP/2 200 
+< content-type: application/json
+< access-control-allow-origin: *
+< x-cloud-trace-context: ac25d602fa7ccc9d25b1babd769c8340
+< date: Wed, 14 Jan 2026 07:20:46 GMT
+< server: Google Frontend
+< content-length: 4286
+< alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+< 
+{ [4286 bytes data]
+100  4286  100  4286    0     0   2580      0  0:00:01  0:00:01 --:--:--  2580
+* Connection #0 to host portal-api-i6yvrrps6q-uc.a.run.app left intact

@@ -25,6 +25,18 @@
                 "destination": "/dashboard.html"
             },
             {
+                "source": "/bigscreen",
+                "destination": "/bigscreen.html"
+            },
+            {
+                "source": "/equations{,/**}",
+                "destination": "/equations/index.html"
+            },
+            {
+                "source": "/equations_api/**",
+                "function": "equations_api"
+            },
+            {
                 "source": "**",
                 "destination": "/index.html"
             }

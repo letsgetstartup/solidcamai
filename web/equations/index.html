@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMCO AI | Equations Lab</title>
+    <link rel="stylesheet" href="./style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Equations Lab</h1>
+            <p class="small">Execute safe equations over BigQuery data (machine telemetry/events + ERP envelopes).</p>
+
+            <div class="row">
+                <div class="input-group">
+                    <label>Tenant</label>
+                    <input id="tenant" value="tenant_demo" placeholder="e.g. tenant_demo">
+                </div>
+                <div class="input-group">
+                    <label>Site</label>
+                    <input id="site" value="site_demo" placeholder="e.g. site_demo">
+                </div>
+                <div class="input-group">
+                    <label>Range</label>
+                    <select id="range">
+                        <option value="1">Last 1 hour</option>
+                        <option value="24" selected>Last 24 hours</option>
+                        <option value="168">Last 7 days</option>
+                        <option value="720">Last 30 days</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Group by</label>
+                    <select id="group_by">
+                        <option value="none">None (single value)</option>
+                        <option value="day" selected>Day</option>
+                        <option value="machine">Machine</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-messages">
+            <div class="msg bot">
+                Welcome to the Equations Lab. Enter an equation below to analyze your shop floor data.
+                <br><br>
+                <span class="small">Available variables include <code>telemetry_samples</code>,
+                    <code>spindle_load_avg</code>, <code>event_count</code>, <code>erp_rows</code>, etc.</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="input-area">
+                <textarea id="equation" rows="1"
+                    placeholder="Enter equation, e.g. (spindle_load_avg * 1.1) / NULLIF(event_count, 0)"></textarea>
+                <button id="send">Run Analysis</button>
+            </div>
+        </div>
+
+        <div id="viz" style="display:none;">
+            <h3 id="viz-title"></h3>
+            <canvas id="viz-canvas"></canvas>
+        </div>
+
+        <div class="footer-links">
+            <a href="/">← Back to Home</a>
+            <a href="/dashboard.html">System Dashboard</a>
+        </div>
+    </div>
+
+    <script src="./equations.js"></script>
+</body>
+
+</html>

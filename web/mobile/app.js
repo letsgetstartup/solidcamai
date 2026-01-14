@@ -8,8 +8,16 @@ const STATE = {
     currentForm: null
 };
 
-// --- API Service (Mocking Backend for now) ---
-const API_BASE = "http://127.0.0.1:8090"; // Control Plane
+// --- API Service (Production Gen 2 Functions) ---
+// Note: In a real app, we would use a Gateway or Firebase Rewrite to /api/*
+// For this MVP, we map specific "services" to their Gen 2 URLs.
+
+const API_MAP = {
+    "context": "https://get-mobile-context-i6yvrrps6q-uc.a.run.app", // Gen 2 Function
+    "ingest": "https://ingest-telemetry-i6yvrrps6q-uc.a.run.app"     // Re-using telemetry ingest for now
+};
+
+const API_BASE = ""; // Not used directly anymore
 
 async function api(path, method = "GET", body = null) {
     // In PWA, we might have stored JWT token
@@ -21,7 +29,15 @@ async function api(path, method = "GET", body = null) {
     headers["X-Dev-Site"] = "site_demo";
 
     try {
-        const res = await fetch(`${API_BASE}${path}`, {
+        // Simple routing logic for MVP
+        let url = path;
+        if (path.includes("/mobile/v1/machines/by-token")) {
+            url = `${API_MAP.context}${path}`;
+        } else if (path.includes("/ingest")) {
+            url = `${API_MAP.ingest}`; // Ingest is usually root path in the function
+        }
+
+        const res = await fetch(url, {
             method,
             headers,
             body: body ? JSON.stringify(body) : null
@@ -123,7 +139,17 @@ function startScanner() {
         html5QrCode = new Html5Qrcode("qr-reader");
         html5QrCode.start(
             { facingMode: "environment" },
-            { fps: 10, qrbox: 250 },
+            {
+                fps: 10,
+                aspectRatio: 1.0,
+                qrbox: function (viewfinderWidth, viewfinderHeight) {
+                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    return {
+                        width: Math.floor(minEdge * 0.7),
+                        height: Math.floor(minEdge * 0.7)
+                    };
+                }
+            },
             (decodedText) => {
                 // Handle scan
                 console.log("Scanned:", decodedText);

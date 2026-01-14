@@ -153,6 +153,8 @@ from .router_erp import router as erp_router
 app.include_router(erp_router)
 from .router_qr import router as qr_router
 app.include_router(qr_router)
+from .router_display import router as display_router
+app.include_router(display_router)
 
 @app.post("/gateways", response_model=GatewayResponse)
 async def create_gateway(gateway: GatewayCreate, db: AsyncSession = Depends(get_db)):

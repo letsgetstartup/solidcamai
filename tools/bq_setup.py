@@ -5,8 +5,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bq_setup")
 
-PROJECT_ID = "solidcam-ai-platform" # Replace/Env Not Set
-DATASET_ID = "simco_telemetry" # Multi-tenant dataset
+PROJECT_ID = "solidcamal"
+DATASET_ID = "simco_telemetry"
 
 def setup_bigquery():
     client = bigquery.Client()

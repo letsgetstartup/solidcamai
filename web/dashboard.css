@@ -1,7 +1,17 @@
 .dashboard-body {
-    background: radial-gradient(circle at top right, #1a1a2e, #0f0f0f);
-    color: #e0e0e0;
+    background: #0b0f14;
+    color: #e7eefc;
     min-height: 100vh;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.container {
+    padding: 0 5%;
+    width: 100%;
 }
 
 .dash-nav {
@@ -92,51 +102,108 @@
     box-shadow: 0 0 10px #00ffaa44;
 }
 
+/* Dash Table */
 .table-container {
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 15px;
+    background: #111824;
+    /* Panel color */
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     text-align: left;
 }
 
 th {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 1.2rem;
-    font-weight: 700;
+    background: #0f1520;
+    /* Panel2 color */
+    padding: 18px 24px;
+    font-weight: 800;
+    color: #a9b7d0;
+    /* Muted */
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 td {
-    padding: 1.2rem;
+    padding: 20px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    vertical-align: middle;
+    font-weight: 500;
+    color: #e7eefc;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .machine-img {
-    width: 80px;
+    width: 60px;
     height: 60px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #000;
 }
 
-.status-cell {
-    display: flex;
+/* Status Pills */
+.status-pill {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    padding: 6px 12px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 800;
+    border: 1px solid transparent;
 }
 
-.pulse {
-    width: 10px;
-    height: 10px;
+.status-pill.active {
+    background: rgba(25, 195, 125, 0.1);
+    color: #19c37d;
+    border-color: rgba(25, 195, 125, 0.3);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #00ffaa;
-    box-shadow: 0 0 10px #00ffaa;
-    animation: pulse 2s infinite;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+}
+
+/* Action Buttons */
+.btn-manage {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a9b7d0;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-manage:hover {
+    background: #19c37d;
+    color: #fff;
+    border-color: #19c37d;
+    box-shadow: 0 0 15px rgba(25, 195, 125, 0.4);
 }
 
 @keyframes pulse {
