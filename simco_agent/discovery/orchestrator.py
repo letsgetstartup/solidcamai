@@ -8,6 +8,8 @@ from .passive import discover_passive
 from .active import discover_active
 from simco_agent.config import settings
 from simco_agent.core.registry import load_registry, save_registry
+from .fingerprint_hasher import generate_machine_id
+from .selection import DriverSelector
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +17,50 @@ class DiscoveryOrchestrator:
     def __init__(self, registry_path: str = None):
         self.registry_path = registry_path
         self.policy = DiscoveryPolicy() # Default, usually updated via ConfigManager
+        self.driver_selector = DriverSelector()
 
     def update_policy(self, config: Dict[str, Any]):
         """Updates internal policy from cloud configuration."""
-        discovery_cfg = config.get("discovery_policy", {})
+        # Config key from Cloud is 'discovery'
+        discovery_cfg = config.get("discovery") or config.get("discovery_policy", {})
+        
         if discovery_cfg:
-            new_policy = DiscoveryPolicy(**discovery_cfg)
-            self.policy = new_policy
-            self.policy.log_decision()
+            # Map Cloud Schema to Internal Policy Schema
+            mapped_cfg = discovery_cfg.copy()
+            
+            # Map 'subnets' -> 'allowed_subnets'
+            if "subnets" in discovery_cfg:
+                mapped_cfg["allowed_subnets"] = discovery_cfg["subnets"]
+                
+            # Map 'protocols' -> 'port_probes' (Filter default probes)
+            if "protocols" in discovery_cfg:
+                allowed_protocols = set(discovery_cfg["protocols"])
+                # Default probes map
+                default_probes = {
+                    "fanuc_focas": [8193],
+                    "modbus": [502],
+                    "opc_ua": [4840], # Normalized key
+                    "opcua": [4840],  # Alias
+                    "mtconnect": [7878],
+                    "ethernetip": [44818]
+                }
+                filtered_probes = {}
+                for proto in allowed_protocols:
+                    if proto in default_probes:
+                        filtered_probes[proto] = default_probes[proto]
+                
+                # If filtered_probes is empty but protocols were provided, it might mean known protocols 
+                # but no port scan needed (e.g. passive only), or custom. 
+                # For now we replace the active probe list.
+                if filtered_probes:
+                    mapped_cfg["port_probes"] = filtered_probes
+
+            try:
+                new_policy = DiscoveryPolicy(**mapped_cfg)
+                self.policy = new_policy
+                self.policy.log_decision()
+            except Exception as e:
+                logger.error(f"Failed to apply discovery policy: {e}")
 
     def run_discovery_cycle(self) -> List[Dict[str, Any]]:
         """Runs the orchestrated discovery cycle according to current policy."""
@@ -82,20 +120,44 @@ class DiscoveryOrchestrator:
         for fp in fingerprints:
             if fp.ip in existing:
                 idx = existing[fp.ip]
-                # Update metadata
-                meta = registry[idx].get("metadata", {})
-                meta["fingerprint"] = asdict(fp)
-                # If confidence high, we can promote status
-                if fp.confidence > 0.8:
-                    registry[idx]["status"] = "IDENTIFIED"
-                    registry[idx]["vendor"] = fp.vendor or registry[idx].get("vendor")
+                # 1. Generate Deterministic ID
+                machine_hash = generate_machine_id(fp)
                 
-                registry[idx]["metadata"] = meta
+                # 2. Select Driver
+                driver_match = self.driver_selector.select_driver(fp)
+                
+                # 3. Update Registry
+                reg_entry = registry[idx]
+                meta = reg_entry.get("metadata", {})
+                
+                # Store core identity
+                meta["fingerprint"] = asdict(fp)
+                meta["machine_hash"] = machine_hash
+                
+                # If driver found, promote to READY_TO_ENROLL or auto-configure
+                if driver_match:
+                    meta["selected_driver"] = {
+                        "name": driver_match.manifest.name,
+                        "version": driver_match.manifest.version,
+                        "score": driver_match.score
+                    }
+                    reg_entry["driver_id"] = driver_match.manifest.name # Top level linkage
+                    
+                    if fp.confidence > 0.8:
+                        reg_entry["status"] = "READY_TO_ENROLL"
+                        reg_entry["vendor"] = fp.vendor or reg_entry.get("vendor")
+                        # Use deterministic hash as machine_id if not already assigned manually
+                        # But be careful not to break existing ID if it was enrolled logic.
+                        # For new machines:
+                        if reg_entry.get("source") != "manual_portal":
+                            reg_entry["machine_id"] = machine_hash
+
+                reg_entry["metadata"] = meta
                 updates += 1
         
         if updates > 0:
             save_registry(registry, self.registry_path)
-            logger.info(f"Orchestrator: Updated {updates} machines with fingerprints")
+            logger.info(f"Orchestrator: Updated {updates} machines with fingerprints & drivers")
 
     def _update_registry(self, candidates: List[Dict[str, Any]]):
         registry = load_registry(self.registry_path)

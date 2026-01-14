@@ -70,18 +70,18 @@ class FingerprintOrchestrator:
         """
         try:
             if protocol == "mtconnect":
-                from .probes.mtconnect_probe import MTConnectProbe
+                from .probes.mtconnect import MTConnectProbe
                 probe = MTConnectProbe()
                 return await probe.run(ip, port)
 
-            if protocol == "opcua":
-                from .probes.opcua_probe import OPCUAProbe
+            if protocol == "opc_ua" or protocol == "opcua":
+                from .probes.opcua import OPCUAProbe
                 probe = OPCUAProbe()
                 return await probe.run(ip, port)
 
-            if protocol == "modbus":
-                from .probes.modbus_probe import ModbusProbe
-                probe = ModbusProbe()
+            if protocol == "fanuc_focas" or protocol == "focas":
+                from .probes.focas import FocasProbe
+                probe = FocasProbe()
                 return await probe.run(ip, port)
                 
             # Fallback for other protocols

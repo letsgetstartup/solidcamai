@@ -1,19 +1,28 @@
-from firebase_functions import https_fn
+from firebase_functions import https_fn, options
 from firebase_admin import initialize_app
 from google.cloud import bigquery
 import sys
 import os
 import json
 import logging
+from functions import portal_api as portal_api_routes
+from functions import mgmt_api as mgmt_api_routes
+from functions import ingest_api as ingest_api_routes
+from admin_api import routes as admin_api_routes # PR2
+
 from datetime import datetime
 from typing import Optional
 
 import functools
+from auth.middleware import require_auth
+
+import firebase_admin
 
 # Add root directory to sys.path to allow imports from simco_common
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-initialize_app()
+if not firebase_admin._apps:
+    initialize_app()
 
 logger = logging.getLogger("functions")
 
@@ -61,36 +70,10 @@ def log_audit_event(actor: str, action: str, details: dict):
     }
     logger.info(f"AUDIT: {json.dumps(audit_record)}")
 
-@https_fn.on_request()
-@cors_enabled
-def enroll_device(req: https_fn.Request) -> https_fn.Response:
-    """Task 6: Secure device enrollment."""
-    if req.method != 'POST': return https_fn.Response('POST only', status=405)
-    
-    data = req.get_json() or {}
-    bootstrap_token = data.get("bootstrap_token")
-    
-    if bootstrap_token != "devtoken":
-        log_audit_event("system", "ENROLLMENT_FAILED", {"reason": "bad_token"})
-        return https_fn.Response(json.dumps({"error": "Unauthorized bootstrap"}), status=403, mimetype="application/json")
-    
-    import uuid
-    device_id = str(uuid.uuid4())
-    
-    # Audit successful enrollment
-    log_audit_event(device_id, "ENROLLMENT_SUCCESS", {"channel": data.get("requested_channel")})
-    
-    response = {
-        "device_id": device_id,
-        "tenant_id": "tenant_demo",
-        "site_id": "site_demo",
-        "channel": data.get("requested_channel", "dev"),
-        "config_version": 1,
-        "config": {"scan_interval_seconds": 60, "log_level": "INFO"}
-    }
-    return https_fn.Response(json.dumps(response), mimetype="application/json")
+
 
 @https_fn.on_request()
+@require_auth
 def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
     """Unified Edge-to-Cloud Ingestion Point (v3.1)."""
     from simco_common.schemas_v3 import TelemetryBatch
@@ -129,6 +112,7 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
                      "timestamp", "status", "metrics", "ip", "vendor"}
         
         rows_to_insert = []
+        row_ids = []
         for r in payload.records:
             d = r.model_dump(mode='json')
             # Filter keys
@@ -139,10 +123,13 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
                 row["metrics"] = json.dumps(row["metrics"])
             
             rows_to_insert.append(row)
+            # PR11: Deduplication via InsertID
+            # record_id is deterministic {device_id}:{sqlite_id} set by Agent
+            row_ids.append(r.record_id)
         
         # In PROD: Use Storage Write API for high throughput.
-        # Here: Streaming API
-        errors = bq.insert_rows_json(table, rows_to_insert)
+        # Here: Streaming API with deduplication
+        errors = bq.insert_rows_json(table, rows_to_insert, row_ids=row_ids)
         if errors:
             logger.error(f"BQ Insert Errors: {errors}")
             # We might still want to proceed to Hot Path, or partial fail?
@@ -248,16 +235,7 @@ def heartbeat(req: https_fn.Request) -> https_fn.Response:
     
     return https_fn.Response(json.dumps({"status": "ok"}), mimetype="application/json")
 
-@https_fn.on_request()
-@cors_enabled
-def ai_investigator(req: https_fn.Request) -> https_fn.Response:
-    """Agent F (Serverless): AI Chatbot Research."""
-    data = req.get_json() or {}
-    query = data.get("query", "status check")
-    
-    return https_fn.Response(json.dumps({
-        "response": f"Serverless AI Analysis for: '{query}'. System healthy."
-    }), mimetype="application/json")
+
 
 
 @https_fn.on_request()
@@ -287,6 +265,148 @@ def manual_enroll(req: https_fn.Request) -> https_fn.Response:
 # Simple in-memory cache for ERP data (per instance)
 _erp_cache = {} # (tenant_id, site_id) -> (timestamp, data)
 ERP_CACHE_TTL = 30 
+
+# --- Pairing & Mobile APIs (PR12) ---
+_pairing_store = {} # code -> {device_fp, status, tenant_id, site_id, token, ts}
+
+@https_fn.on_request()
+@cors_enabled
+def pair_init(req: https_fn.Request) -> https_fn.Response:
+    """Device requests pairing code."""
+    if req.method != 'POST': return https_fn.Response('POST only', status=405)
+    data = req.get_json() or {}
+    device_fp = data.get("fingerprint", "unknown_device")
+    
+    import random, string
+    code = ''.join(random.choices(string.digits, k=6))
+    
+    # Store
+    _pairing_store[code] = {
+        "device_fp": device_fp,
+        "status": "PENDING",
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    return https_fn.Response(json.dumps({"code": code, "expiry": 300}), mimetype="application/json")
+
+@https_fn.on_request()
+@cors_enabled
+@require_auth
+def pair_confirm(req: https_fn.Request) -> https_fn.Response:
+    """Admin confirms pairing code."""
+    if req.method != 'POST': return https_fn.Response('POST only', status=405)
+    
+    # RBAC
+    user_claims = validate_auth(req)
+    if not user_claims or user_claims.get("role") not in ["Manager", "Installer", "Admin"]:
+         return https_fn.Response(json.dumps({"error": "Unauthorized"}), status=403, mimetype="application/json")
+
+    data = req.get_json() or {}
+    code = data.get("code")
+    tenant_id = data.get("tenant_id") or user_claims.get("tenant_id")
+    site_id = data.get("site_id") or user_claims.get("site_id")
+    
+    if code not in _pairing_store:
+        return https_fn.Response(json.dumps({"error": "Invalid Code"}), status=404, mimetype="application/json")
+        
+    # Generate Token
+    import uuid
+    token = f"display_{uuid.uuid4().hex[:16]}"
+    
+    _pairing_store[code]["status"] = "CONFIRMED"
+    _pairing_store[code]["tenant_id"] = tenant_id
+    _pairing_store[code]["site_id"] = site_id
+    _pairing_store[code]["token"] = token
+    
+    # Log Audit
+    log_audit_event(user_claims.get("user_id", "admin"), "DEVICE_PAIRED", {
+        "code": code, "tenant": tenant_id, "site": site_id, "device_fp": _pairing_store[code]["device_fp"]
+    })
+    
+    return https_fn.Response(json.dumps({"status": "SUCCESS"}), mimetype="application/json")
+
+@https_fn.on_request()
+@cors_enabled
+def pair_token(req: https_fn.Request) -> https_fn.Response:
+    """Device polls for token."""
+    if req.method != 'POST': return https_fn.Response('POST only', status=405)
+    data = req.get_json() or {}
+    code = data.get("code")
+    
+    if code not in _pairing_store:
+        return https_fn.Response(json.dumps({"error": "Invalid Code"}), status=404, mimetype="application/json")
+        
+    record = _pairing_store[code]
+    if record["status"] == "PENDING":
+        return https_fn.Response(json.dumps({"status": "PENDING"}), mimetype="application/json")
+    
+    if record["status"] == "CONFIRMED":
+        # One-time retrieve? Or keep? For now keep simple
+        return https_fn.Response(json.dumps({
+            "status": "SUCCESS",
+            "token": record["token"],
+            "tenant_id": record["tenant_id"],
+            "site_id": record["site_id"]
+        }), mimetype="application/json")
+        
+    return https_fn.Response(json.dumps({"error": "Expired or Invalid"}), status=400, mimetype="application/json")
+
+@https_fn.on_request()
+@cors_enabled
+def resolve_mobile_context(req: https_fn.Request) -> https_fn.Response:
+    """Resolve QR Token to Machine Context."""
+    # Path: /mobile/context?token=...
+    token = req.args.get("token")
+    if not token:
+        return https_fn.Response("Missing token", status=400)
+    
+    # In MVP, our tokens are base64(machine_id).
+    # In Prod, look up in DB.
+    try:
+        import base64
+        # naive decode
+        # Expect base64 url safe
+        decoded = base64.urlsafe_b64decode(token + "==").decode()
+        machine_id = decoded
+        
+        # Look up machine to find tenant/site
+        bq = get_bq_client()
+        dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+        query = f"""
+            SELECT tenant_id, site_id, vendor
+            FROM `{dataset}.assets_current`
+            WHERE machine_id = @mid
+            LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[bigquery.ScalarQueryParameter("mid", "STRING", machine_id)]
+        )
+        results = list(bq.query(query, job_config=job_config).result())
+        
+        if not results:
+             # Fallback for demo
+             if os.environ.get("DEV_MODE") == "1":
+                 return https_fn.Response(json.dumps({
+                     "machine_id": machine_id,
+                     "tenant_id": "tenant_demo",
+                     "site_id": "site_demo",
+                     "vendor": "UNKNOWN"
+                 }), mimetype="application/json")
+             return https_fn.Response("Machine not found", status=404)
+        
+        row = results[0]
+        return https_fn.Response(json.dumps({
+            "machine_id": machine_id,
+            "tenant_id": row.tenant_id,
+            "site_id": row.site_id,
+            "vendor": row.vendor
+        }), mimetype="application/json")
+        
+    except Exception as e:
+        logger.error(f"Mobile Resolve Error: {e}")
+        return https_fn.Response("Invalid Token", status=400)
+
+
 
 # --- Big Screen Summary Implementation ---
 def _bigscreen_summary(req: https_fn.Request, tenant_id: str, site_id: str):
@@ -530,6 +650,7 @@ def check_rbac(req: https_fn.Request, tenant_id: str, site_id: Optional[str] = N
 
 @https_fn.on_request()
 @cors_enabled
+@require_auth
 def portal_api(req: https_fn.Request) -> https_fn.Response:
     """Unified UI Read API with RBAC."""
     path = req.path
@@ -1495,3 +1616,94 @@ def ask(req: https_fn.Request) -> https_fn.Response:
     )
 
 # === End /ask ===
+
+# D. Admin API (Identity & Tenant Management)
+# ------------------------------------------------------------------------------
+@https_fn.on_request(
+    cors=options.CorsOptions(
+        cors_origins="*",
+        cors_methods=["POST", "GET", "OPTIONS"]
+    ),
+    region="us-central1"
+)
+@require_auth
+def admin_api(req: https_fn.Request) -> https_fn.Response:
+    """
+    Administrative actions: Invite User, Create Tenant, etc.
+    Strictly RBAC protected (Admin Only).
+    """
+    return admin_api_routes.dispatch(req)
+
+
+# D. Admin API (Identity & Tenant Management)
+# ------------------------------------------------------------------------------
+@https_fn.on_request(
+    cors=options.CorsOptions(
+        cors_origins="*",
+        cors_methods=["POST", "GET", "OPTIONS"]
+    ),
+    region="us-central1"
+)
+@require_auth
+def admin_api(req: https_fn.Request) -> https_fn.Response:
+    """
+    Administrative actions: Invite User, Create Tenant, etc.
+    Strictly RBAC protected (Admin Only).
+    """
+    return admin_api_routes.dispatch(req)
+
+
+@https_fn.on_request()
+@cors_enabled
+@require_auth
+def metrics_history(req: https_fn.Request) -> https_fn.Response:
+    """PR13: Analytics History API."""
+    # GET /metrics/history?machine_id=X&start=ISO&end=ISO
+    
+    tenant_id = req.args.get("tenant_id") # Normally from auth claims
+    machine_id = req.args.get("machine_id")
+    start_ts = req.args.get("start")
+    end_ts = req.args.get("end")
+    
+    if not machine_id:
+        return https_fn.Response("Missing machine_id", status=400)
+
+    # RBAC / Claims check
+    user_claims = validate_auth(req)
+    if user_claims:
+        tenant_id = user_claims.get("tenant_id")
+    
+    if not tenant_id:
+        return https_fn.Response("Unauthorized Tenant", status=403)
+
+    try:
+        bq = get_bq_client()
+        dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+        
+        # Query View
+        query = f"""
+            SELECT hour_bucket, minutes_active, minutes_idle, minutes_alarm
+            FROM `{dataset}.hourly_machine_stats`
+            WHERE tenant_id = @tid 
+              AND machine_id = @mid
+              AND hour_bucket BETWEEN @start AND @end
+            ORDER BY hour_bucket ASC
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("tid", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("mid", "STRING", machine_id),
+                bigquery.ScalarQueryParameter("start", "TIMESTAMP", start_ts or datetime.utcnow().isoformat()),
+                bigquery.ScalarQueryParameter("end", "TIMESTAMP", end_ts or datetime.utcnow().isoformat())
+            ]
+        )
+        
+        results = bq.query(query, job_config=job_config).result()
+        data = [dict(row) for row in results]
+        
+        return https_fn.Response(json.dumps(data, default=str), mimetype="application/json")
+        
+    except Exception as e:
+        logger.error(f"History Query Error: {e}")
+        return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+

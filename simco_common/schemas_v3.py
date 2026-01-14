@@ -10,6 +10,11 @@ SiteID = constr(pattern=r"^[a-z0-9-_]+$")
 GatewayID = constr(pattern=r"^[a-z0-9-_]+$")
 MachineID = constr(pattern=r"^[a-z0-9-_]+$")
 
+class DriverInfo(BaseModel):
+    name: str
+    version: str
+    protocol: Optional[str] = None
+
 # --- Enums ---
 class StatusEnum(str, Enum):
     ACTIVE = "ACTIVE"
@@ -52,7 +57,7 @@ class QualityMetrics(BaseModel):
     source_clock_skew_ms: Optional[float] = None
     sample_period_ms: Optional[float] = None
 
-class TelemetryRecord(BaseModel):
+class TelemetryRecordV3(BaseModel):
     record_id: str = Field(..., description="Deterministic record ID for idempotency")
     tenant_id: str
     site_id: str

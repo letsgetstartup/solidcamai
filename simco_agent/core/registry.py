@@ -86,4 +86,28 @@ class RegistryService:
         except Exception as e:
             logger.error(f"Migration failed: {e}")
 
+
 registry = RegistryService()
+
+# --- Legacy JSON Support for Orchestrator ---
+def load_registry(path: str = "machine_registry.json") -> list[dict]:
+    if not path or not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load registry from {path}: {e}")
+        return []
+
+def save_registry(data: list[dict], path: str = "machine_registry.json"):
+    if not path:
+        return
+    try:
+        # Atomic write
+        tmp_path = f"{path}.tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        os.rename(tmp_path, path)
+    except Exception as e:
+        logger.error(f"Failed to save registry to {path}: {e}")

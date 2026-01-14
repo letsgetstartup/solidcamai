@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simco Big Screen - Pairing</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        #code {
+            font-size: 5em;
+            letter-spacing: 10px;
+            font-weight: bold;
+            color: #00d4ff;
+            margin: 20px 0;
+        }
+
+        .status {
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Connect to Simco Cloud</h1>
+        <p>Go to <strong>simco.ai/admin/pair</strong> and enter code:</p>
+        <div id="code">LOADING</div>
+        <div class="status" id="status">Waiting for code...</div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:5001/solidcam-ai-demo/us-central1"; // Dev URL
+        let pairCode = null;
+
+        async function init() {
+            try {
+                // 1. Get Code
+                const res = await fetch(`${API_BASE}/pair_init`, { method: "POST", body: JSON.stringify({ fingerprint: navigator.userAgent }) });
+                const data = await res.json();
+                pairCode = data.code;
+                document.getElementById("code").innerText = pairCode;
+                document.getElementById("status").innerText = "Waiting for approval...";
+                poll();
+            } catch (e) {
+                document.getElementById("status").innerText = "Error: " + e.message;
+            }
+        }
+
+        async function poll() {
+            if (!pairCode) return;
+            try {
+                const res = await fetch(`${API_BASE}/pair_token`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: pairCode })
+                });
+                const data = await res.json();
+
+                if (data.status === "SUCCESS") {
+                    document.getElementById("status").innerText = "Pairing Successful! Redirecting...";
+                    localStorage.setItem("display_token", data.token);
+                    localStorage.setItem("tenant_id", data.tenant_id);
+                    localStorage.setItem("site_id", data.site_id);
+                    setTimeout(() => window.location.href = "../dashboard.html", 1000);
+                } else if (data.status === "PENDING") {
+                    setTimeout(poll, 2000); // Retry
+                } else {
+                    document.getElementById("status").innerText = "Error: " + data.error;
+                }
+            } catch (e) { console.error(e); setTimeout(poll, 5000); }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

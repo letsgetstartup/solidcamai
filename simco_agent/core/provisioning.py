@@ -18,14 +18,19 @@ def ensure_enrolled(state: DeviceState = None):
     logger.info("Starting device enrollment...")
     enroll_url = f"{settings.MGMT_BASE_URL}/enroll"
     
+    # PR3: Using Pairing Code instead of legacy bootstrap
+    pairing_code = settings.PAIRING_CODE
+    if not pairing_code:
+        logger.warning("No PAIRING_CODE configured. Enrollment paused.")
+        return
+
     payload = {
-        "bootstrap_token": settings.BOOTSTRAP_TOKEN,
-        "device_fingerprint": {
+        "pairing_code": pairing_code, # PR3
+        "hardware_info": {
             "hostname": os.uname().nodename,
-            "mac": "00:00:00:00:00:00", # Mocked for now
-            "runtime_version": "2.2.0"
-        },
-        "requested_channel": "dev"
+            "mac": "00:00:00:00:00:00", # Mocked
+            "runtime_version": settings.VERSION
+        }
     }
 
     try:
@@ -35,11 +40,12 @@ def ensure_enrolled(state: DeviceState = None):
         
         state.update(
             device_id=data["device_id"],
+            gateway_token=data.get("gateway_token"), # PR4: Persist Token
             tenant_id=data["tenant_id"],
             site_id=data["site_id"],
-            channel=data["channel"],
-            config_version=data["config_version"],
-            enrolled_at=os.times().elapsed
+            channel=data.get("channel", "prod"),
+            config_version=data.get("config_version", 1),
+            enrolled_at=time.time()
         )
         logger.info(f"Enrollment successful! Device ID: {state.device_id}")
     except Exception as e:

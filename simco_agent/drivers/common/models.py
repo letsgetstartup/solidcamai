@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 from enum import Enum
 import datetime
+import uuid
 
 @dataclass
 class Fingerprint:
@@ -37,6 +38,31 @@ class TelemetryPoint:
     source_timestamp: Optional[str] = None # Original timestamp from device if different
 
 @dataclass
+class TelemetryRecord:
+    """
+    Complete context for a single telemetry event/sample.
+    Aligned with Cloud Schema.
+    """
+    machine_id: str
+    timestamp: str
+    metrics: Dict[str, Any] # e.g. {"spindle_speed": 1000}
+    status: Optional[str] = None
+    record_id: Optional[str] = None # Deterministic ID for Idempotency
+    tenant_id: Optional[str] = None
+    site_id: Optional[str] = None
+    device_id: Optional[str] = None
+
+@dataclass
+class TelemetryBatch:
+    """
+    A transport unit containing multiple records.
+    Atomic unit for Buffering and Acknowledgement.
+    """
+    records: List[TelemetryRecord]
+    uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = field(default_factory=lambda: datetime.datetime.utcnow().isoformat())
+
+@dataclass
 class MachineDescriptor:
     """
     Enriched machine metadata stored in the registry.
@@ -59,6 +85,7 @@ class DriverManifest:
     # List of rules. Each rule is a dict of regexes.
     # e.g. [{"vendor": "Fanuc.*", "model": ".*"}]
     match_rules: List[Dict[str, str]] = field(default_factory=list)
+    checksum: Optional[str] = None # SHA256 of the driver file
 
 @dataclass
 class DriverMatch:

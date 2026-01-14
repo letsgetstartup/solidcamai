@@ -1,7 +1,10 @@
 {
-  "device_id": "device_demo",
+  "device_id": "dev1",
   "tenant_id": "tenant_demo",
   "site_id": "site_demo",
   "channel": "dev",
-  "config_version": 1
+  "config_version": 101,
+  "is_enrolled": true,
+  "gateway_token": "test_token",
+  "last_config_update": 101
 }
