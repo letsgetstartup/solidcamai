@@ -1289,3 +1289,209 @@ def equations_api(req: https_fn.Request) -> https_fn.Response:
     return resp
 
 # === END EQUATIONS API ===
+
+
+
+# === Simco Chat Compatibility: /ask ===
+# Simco frontend POSTs to /ask and expects JSON: {"answer": str, "follow_up": [...], "visualization": {...}}
+# The UI sends header X-Tenant-ID (hardcoded as 'test_tenant' in simco public/script.js).
+# We keep the UI untouched and adapt here.
+@https_fn.on_request()
+def ask(req: https_fn.Request) -> https_fn.Response:
+    if req.method == "OPTIONS":
+        return https_fn.Response(
+            "",
+            status=204,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Tenant-ID",
+            },
+        )
+
+    if req.method != "POST":
+        return https_fn.Response(
+            json.dumps({"error": "POST only"}),
+            status=405,
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    data = req.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    site_id = (data.get("site_id") or "test_site").strip()
+
+    tenant_id = (req.headers.get("X-Tenant-ID") or "").strip()
+    if not tenant_id:
+        return https_fn.Response(
+            json.dumps({"error": "UNAUTHORIZED", "details": "Missing X-Tenant-ID"}),
+            status=401,
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    # Alias Demo Tenant
+    if tenant_id == "test_tenant":
+        tenant_id = "tenant_demo"
+
+    if not question:
+        return https_fn.Response(
+            json.dumps({"error": "MISSING_QUESTION"}),
+            status=400,
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
+    bq = get_bq_client()
+    q_lower = question.lower()
+    
+    # --- Intent Dispatcher ---
+    
+    # 1. ERP / Orders
+    if any(k in q_lower for k in ["order", "erp", "production", "due"]):
+        # Extract from JSON payload if columns are missing/null
+        sql = f"""
+        SELECT 
+            JSON_EXTRACT_SCALAR(payload, '$.order_id') as order_id,
+            JSON_EXTRACT_SCALAR(payload, '$.product_id') as product_id,
+            JSON_EXTRACT_SCALAR(payload, '$.status') as status,
+            CAST(JSON_EXTRACT_SCALAR(payload, '$.quantity') AS INT64) as quantity,
+            JSON_EXTRACT_SCALAR(payload, '$.due_date') as due_date
+        FROM `{dataset}.raw_erp_orders`
+        WHERE tenant_id = @tenant_id AND site_id = @site_id
+        ORDER BY due_date ASC
+        LIMIT 10
+        """
+        viz_title = "Active Production Orders"
+        viz_type = "bar"
+        viz_label_col = "order_id"
+        viz_data_col = "quantity"
+        
+    # 2. Telemetry / Machine Status
+    elif any(k in q_lower for k in ["spindle", "load", "temp", "vibration", "power", "telemetry", "status", "feed"]):
+        # Determine metric key
+        metric_key = "spindle_load" # Default
+        if "power" in q_lower: metric_key = "power_kw"
+        elif "feed" in q_lower: metric_key = "feed_rate"
+        
+        # Use JSON_VALUE (BigQuery standard SQL for JSON extraction)
+        # Note: If metrics is STRING, use JSON_EXTRACT_SCALAR.
+        # Assuming metrics is STRING based on seeding script.
+        sql = f"""
+        SELECT machine_id, '{metric_key}' as metric, 
+               CAST(JSON_EXTRACT_SCALAR(metrics, '$.{metric_key}') AS FLOAT64) as value, 
+               timestamp
+        FROM `{dataset}.raw_telemetry`
+        WHERE tenant_id = @tenant_id AND site_id = @site_id
+          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+        ORDER BY timestamp DESC
+        LIMIT 50
+        """
+        viz_title = f"Recent {metric_key} Telemetry"
+        viz_type = "line"
+        viz_label_col = "machine_id"
+        viz_data_col = "value"
+        
+    # 3. Events / Alarms (Default)
+    else:
+        # Refine event type if specified
+        event_filter = ""
+        if "alarm" in q_lower:
+            event_filter = "AND type = 'ALARM'"
+        elif "downtime" in q_lower:
+            event_filter = "AND type = 'DOWNTIME'"
+            
+        sql = f"""
+        SELECT machine_id, type, COUNT(1) AS event_count
+        FROM `{dataset}.raw_events`
+        WHERE tenant_id = @tenant_id 
+          AND site_id = @site_id
+          {event_filter}
+          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+        GROUP BY machine_id, type
+        ORDER BY event_count DESC
+        LIMIT 10
+        """
+        viz_title = "Event Count (Last 24h)"
+        viz_type = "bar"
+        viz_label_col = "machine_id"
+        viz_data_col = "event_count"
+
+    # Execute
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+            bigquery.ScalarQueryParameter("site_id", "STRING", site_id),
+        ]
+    )
+
+    try:
+        rows = [dict(r) for r in bq.query(sql, job_config=job_config).result()]
+    except Exception as e:
+        logger.error(f"/ask BigQuery error: {e}")
+        return https_fn.Response(
+            json.dumps({"error": "BQ_ERROR", "details": str(e)}),
+            status=500,
+            mimetype="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    # Formulate Response
+    if not rows:
+        resp = {
+            "answer": f"I found no data matching your query ({question}) in the last 24 hours.",
+            "follow_up": ["Try asking about 'Events'", "Show active orders", "Check machine status"],
+            "visualization": {}
+        }
+    else:
+        # Dynamic Answer Construction
+        if "order_id" in rows[0]:
+            top = rows[0]
+            answer = f"Found {len(rows)} active orders. Oldest due is {top.get('order_id')} ({top.get('product_id')}) due on {top.get('due_date')}."
+        elif "metric" in rows[0]:
+            # Telemetry summary
+            top = rows[0]
+            answer = f"Latest telemetry loaded. Example: {top.get('machine_id')} - {top.get('metric')} = {top.get('value')}."
+        else:
+            # Events summary
+            top = rows[0]
+            answer = f"Top machine for events: {top.get('machine_id')} with {top.get('event_count')} events ({top.get('type', 'TOTAL')})."
+
+        # Build Viz
+        if viz_type == "line" and "metric" in rows[0]:
+             # Special handling for telemetry lines if needed, but keeping it simple for now
+             # Just map first 10 rows
+             display_rows = rows[:10]
+             viz = {
+                "type": "bar",
+                "title": f"{viz_title}",
+                "labels": [f"{r.get('machine_id')} ({r.get('metric')})" for r in display_rows],
+                "datasets": [{"label": "Value", "data": [r.get(viz_data_col) for r in display_rows]}]
+             }
+        else:
+            viz = {
+                "type": viz_type,
+                "title": viz_title,
+                "labels": [r.get(viz_label_col) for r in rows],
+                "datasets": [{"label": "Count/Qty", "data": [r.get(viz_data_col) for r in rows]}],
+            }
+
+        resp = {
+            "answer": answer + f"\n\nContext: {question}",
+            "follow_up": [
+                "Show more details",
+                "Breakdown by machine",
+                "Analyze trends"
+            ],
+            "visualization": viz
+        }
+
+    return https_fn.Response(
+        json.dumps(resp),
+        status=200,
+        mimetype="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
+
+# === End /ask ===

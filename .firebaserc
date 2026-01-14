@@ -1,0 +1,26 @@
+{
+  "projects": {},
+  "targets": {
+    "solidcam-f58bc": {
+      "hosting": {
+        "prod": [
+          "solidcam-f58bc"
+        ],
+        "simco": [
+          "solidcamal"
+        ]
+      }
+    },
+    "solidcamal": {
+      "hosting": {
+        "prod": [
+          "solidcamal"
+        ],
+        "simco": [
+          "solidcamal-chat"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
