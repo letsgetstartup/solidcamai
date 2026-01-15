@@ -34,6 +34,14 @@
                     "destination": "/equations/index.html"
                 },
                 {
+                    "source": "/pair_init",
+                    "function": "pair_init"
+                },
+                {
+                    "source": "/pair_token",
+                    "function": "pair_token"
+                },
+                {
                     "source": "/equations_api/**",
                     "function": "equations_api"
                 },

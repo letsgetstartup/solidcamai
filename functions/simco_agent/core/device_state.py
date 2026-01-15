@@ -40,6 +40,14 @@ class DeviceState:
         return self.data.get("device_id")
 
     @property
+    def gateway_token(self) -> Optional[str]:
+        return self.data.get("gateway_token")
+
+    @property
+    def gateway_secret(self) -> Optional[str]:
+        return self.data.get("gateway_secret") or self.gateway_token # Alias for backward compat
+
+    @property
     def is_enrolled(self) -> bool:
         return bool(self.device_id)
 

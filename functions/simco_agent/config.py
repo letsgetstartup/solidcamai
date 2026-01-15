@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Fleet Management (Task 6)
     MGMT_BASE_URL: str = "http://127.0.0.1:8090"
     BOOTSTRAP_TOKEN: str = "devtoken"
+    PAIRING_CODE: Optional[str] = None # PR3: Replaces BOOTSTRAP_TOKEN
     DEVICE_STATE_FILE: str = "device_state.json"
     TENANT_ID: str = "pending"
     SITE_ID: str = "pending"

@@ -1,33 +1,63 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr, field_validator
 from typing import Dict, Any, Optional, Union, List
 from enum import Enum
 from datetime import datetime
 
+# --- Canonical IDs (Strong Types) ---
+# Using type aliases for clarity, but validated via regex in models if needed
+TenantID = constr(pattern=r"^[a-z0-9-_]+$")
+SiteID = constr(pattern=r"^[a-z0-9-_]+$")
+GatewayID = constr(pattern=r"^[a-z0-9-_]+$")
+MachineID = constr(pattern=r"^[a-z0-9-_]+$")
+
+class DriverInfo(BaseModel):
+    name: str
+    version: str
+    protocol: Optional[str] = None
+
+# --- Enums ---
 class StatusEnum(str, Enum):
     ACTIVE = "ACTIVE"
-    RUNNING = "RUNNING"
-    IDLE = "IDLE"
+    RUNNING = "ACTIVE" # Alias
+    READY = "READY"
+    IDLE = "READY" # Alias
     STOPPED = "STOPPED"
+    FEED_HOLD = "FEED_HOLD"
+    INTERRUPTED = "INTERRUPTED"
     ERROR = "ERROR"
     UNKNOWN = "UNKNOWN"
 
-class EventTypeEnum(str, Enum):
-    ANOMALY_DETECTED = "ANOMALY_DETECTED"
-    DRIVER_ERROR = "DRIVER_ERROR"
-    CONFIG_CHANGED = "CONFIG_CHANGED"
-    MACHINE_ONBOARDED = "MACHINE_ONBOARDED"
+class ControllerVendor(str, Enum):
+    SIEMENS = "SIEMENS"
+    FANUC = "FANUC"
+    HAAS = "HAAS"
+    HEIDENHAIN = "HEIDENHAIN"
+    UNKNOWN = "UNKNOWN"
 
-class SeverityEnum(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    CRITICAL = "CRITICAL"
+class ProtocolEnum(str, Enum):
+    OPCUA = "opcua"
+    MTCONNECT = "mtconnect"
+    FOCAS = "focas"
+    MODBUS = "modbus"
 
-class DriverInfo(BaseModel):
-    driver_id: str
-    driver_version: str
+# --- Discovery & Handshake ---
+class HandshakeResult(BaseModel):
+    controller_vendor: ControllerVendor
+    controller_model: str
+    controller_version: Optional[str] = None
+    serial: Optional[str] = None
+    machine_name: Optional[str] = None
+    protocol: ProtocolEnum
+    endpoint: Dict[str, Any] # host, port, path
+    fingerprint_sha256: str
+    confidence: float = Field(ge=0.0, le=1.0)
 
-class TelemetryRecord(BaseModel):
+# --- Telemetry ---
+class QualityMetrics(BaseModel):
+    source_clock_skew_ms: Optional[float] = None
+    sample_period_ms: Optional[float] = None
+
+class TelemetryRecordV3(BaseModel):
     record_id: str = Field(..., description="Deterministic record ID for idempotency")
     tenant_id: str
     site_id: str
@@ -35,8 +65,18 @@ class TelemetryRecord(BaseModel):
     device_id: Optional[str] = Field(None, description="Edge Gateway Identity")
     timestamp: str # RFC3339/ISO8601
     status: StatusEnum
-    metrics: Dict[str, Union[float, int, str, bool]]
+    metrics: Dict[str, Union[float, int, str, bool]] = Field(default_factory=dict)
     driver: Optional[DriverInfo] = None
+
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, v):
+        try:
+            # Simple RFC3339/ISO8601 check
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("Invalid timestamp format. Expected RFC3339.")
+        return v
 
 class EventRecord(BaseModel):
     event_id: str = Field(..., description="Deterministic event ID for idempotency")
@@ -50,26 +90,26 @@ class EventRecord(BaseModel):
     severity: SeverityEnum
     details: Dict[str, Any]
 
-class AssetRecord(BaseModel):
-    tenant_id: str
-    site_id: str
-    machine_id: str
-    controller_vendor: Optional[str] = None
-    controller_model: Optional[str] = None
-    ip: Optional[str] = None
-    mac: Optional[str] = None
-    last_seen: str
-
-class MachineRegistryEntry(BaseModel):
-    machine_id: str
-    ip: str
-    vendor: str
-    status: str
-    driver_id: Optional[str] = None
-    last_seen: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, v):
+        try:
+            # Simple RFC3339/ISO8601 check
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("Invalid timestamp format. Expected RFC3339.")
+        return v
 
 class TelemetryBatch(BaseModel):
-    records: List[TelemetryRecord]
+    gateway_id: str
+    records: List[TelemetryRecordV3]
 
-TelemetryBatch.model_rebuild()
+# --- Config Management ---
+class ControlPlaneConfig(BaseModel):
+    """
+    Configuration distributed from Cloud to Gateway.
+    """
+    config_version: str
+    heartbeat_interval_seconds: int = 30
+    discovery_policy: Dict[str, Any]
+    spool_max_bytes: int = 104_857_600 # 100MB

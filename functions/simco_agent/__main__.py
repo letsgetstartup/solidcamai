@@ -55,6 +55,13 @@ async def main():
             loop = asyncio.get_running_loop()
             candidates = await loop.run_in_executor(None, orchestrator.run_discovery_cycle)
             
+            # 3.1. Fingerprinting (Async)
+            if candidates:
+                fingerprints = await orchestrator.run_fingerprinting(candidates)
+                if fingerprints:
+                    # Save results (sync I/O, quick enough for now)
+                    orchestrator.save_fingerprints(fingerprints)
+            
             # 4. Ingestion Cycle (Drivers)
             from .core.registry import load_registry
             registry = load_registry()

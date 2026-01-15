@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simco Admin - Pair Device</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+        }
+
+        input {
+            padding: 5px;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Pair New Display</h1>
+    <div id="auth-check">Checking Auth...</div>
+
+    <div id="form" style="display:none;">
+        <div class="form-group">
+            <label>Pairing Code (from TV):</label>
+            <input type="text" id="code" maxlength="6" placeholder="123456">
+        </div>
+        <div class="form-group">
+            <label>Tenant ID:</label>
+            <input type="text" id="tenant_id" value="tenant_demo">
+        </div>
+        <div class="form-group">
+            <label>Site ID:</label>
+            <input type="text" id="site_id" value="site_demo">
+        </div>
+        <button onclick="confirmPair()">Pair Device</button>
+        <div id="result"></div>
+    </div>
+
+    <!-- Firebase Scripts (Simulated for this file) -->
+    <script type="module">
+        // Mock Auth for Dev
+        const token = localStorage.getItem("admin_token");
+        if (!token) {
+            document.getElementById("auth-check").innerText = "Not Authenticated. (Set 'admin_token' in localStorage)";
+            // Mock login helper
+            const btn = document.createElement("button");
+            btn.innerText = "Dev Login";
+            btn.onclick = () => {
+                localStorage.setItem("admin_token", "mock_admin_token"); // Requires backend to accept mock or real token
+                location.reload();
+            };
+            document.body.appendChild(btn);
+        } else {
+            document.getElementById("auth-check").style.display = "none";
+            document.getElementById("form").style.display = "block";
+        }
+
+        window.confirmPair = async () => {
+            const code = document.getElementById("code").value;
+            const tenant = document.getElementById("tenant_id").value;
+            const site = document.getElementById("site_id").value;
+            const API_BASE = "http://localhost:5001/solidcam-ai-demo/us-central1";
+
+            try {
+                const res = await fetch(`${API_BASE}/pair_confirm`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("admin_token") // Needs Real ID Token in prod
+                    },
+                    body: JSON.stringify({ code: code, tenant_id: tenant, site_id: site })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById("result").innerText = "Success! Device Paired.";
+                } else {
+                    document.getElementById("result").innerText = "Error: " + data.error;
+                }
+            } catch (e) {
+                document.getElementById("result").innerText = "Error: " + e.message;
+            }
+        }
+    </script>
+</body>
+
+</html>

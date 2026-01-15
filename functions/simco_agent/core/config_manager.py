@@ -48,7 +48,8 @@ class ConfigManager:
         
         loop = asyncio.get_event_loop()
         try:
-            response = await loop.run_in_executor(None, lambda: requests.post(url, json=payload, timeout=10))
+            headers = {"Authorization": f"Bearer {self.state.gateway_token}"} # PR4: Auth
+            response = await loop.run_in_executor(None, lambda: requests.post(url, json=payload, headers=headers, timeout=10))
             if response.status_code == 200:
                 data = response.json()
                 if data.get("changed"):

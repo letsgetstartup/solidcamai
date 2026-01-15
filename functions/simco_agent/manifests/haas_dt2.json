@@ -1,0 +1,16 @@
+{
+    "name": "haas-mtconnect",
+    "version": "2.1.0",
+    "description": "Optimized driver for Haas DT-2 machines via MTConnect",
+    "protocol": "mtconnect",
+    "match_rules": [
+        {
+            "vendor": "Haas.*",
+            "model": "DT-2"
+        },
+        {
+            "vendor": "Haas.*",
+            "model": "VF-.*"
+        }
+    ]
+}

@@ -5,9 +5,9 @@ import sys
 import os
 import json
 import logging
-from functions import portal_api as portal_api_routes
-from functions import mgmt_api as mgmt_api_routes
-from functions import ingest_api as ingest_api_routes
+import portal_api as portal_api_routes
+import mgmt_api as mgmt_api_routes
+import ingest_api as ingest_api_routes
 from admin_api import routes as admin_api_routes # PR2
 
 from datetime import datetime

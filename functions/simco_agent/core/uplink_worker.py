@@ -15,16 +15,21 @@ class UplinkWorker:
     def __init__(self, buffer_manager: Optional[BufferManager] = None):
         self.bm = buffer_manager or BufferManager()
         self.ingest_url = settings.INGEST_URL
-        self.batch_size = settings.UPLOAD_BATCH_SIZE
         self.interval = settings.UPLOAD_INTERVAL_SECONDS
         self.timeout = settings.UPLOAD_TIMEOUT_SECONDS
         self.running = False
         self.backoff_count = 0
 
+    def submit_batch(self, batch):
+        """Public API to queue a batch."""
+        self.bm.push(batch)
+
     async def run(self):
         """Main upload loop."""
         self.running = True
         logger.info(f"UplinkWorker started. Target: {self.ingest_url}")
+        
+        from simco_agent.core.device_state import DeviceState
         
         while self.running:
             try:
@@ -34,60 +39,54 @@ class UplinkWorker:
                     logger.debug(f"Backing off for {wait:.2f}s...")
                     await asyncio.sleep(wait)
 
-                # 2. Reserve Batch
-                batch = self.bm.reserve_batch(self.batch_size)
+                # 2. Peek Batch (Persisted Queue)
+                batch = self.bm.peek()
+                
                 if not batch:
                     await asyncio.sleep(self.interval)
                     continue
 
                 # 3. Upload
-                ids = [item[0] for item in batch]
-                payloads = [item[1] for item in batch]
+                # Serialize back to dict for sending
+                from dataclasses import asdict
+                payload = asdict(batch)
                 
-                # Injected deterministic id for backend idempotency
-                # record_id = {device_id}:{sqlite_row_id}
-                from simco_agent.core.device_state import DeviceState
-                device_id = DeviceState().device_id
-                
-                for p, row_id in zip(payloads, ids):
-                    if "record_id" not in p or not p["record_id"]:
-                        p["record_id"] = f"{device_id}:{row_id}"
+                # PR11: Idempotency Key
+                headers = {
+                    "Authorization": f"Bearer {DeviceState().gateway_token}",
+                    "Content-Type": "application/json",
+                    "X-Idempotency-Key": batch.uuid
+                }
 
-                success = await self._upload_batch({"records": payloads})
-                from simco_agent.observability.metrics import edge_metrics
+                success = await self._upload_batch(payload, headers)
                 
                 # 4. Success/Failure Handling
                 if success:
-                    self.bm.mark_sent(ids)
+                    self.bm.ack(batch.uuid) # Delete from buffer
                     self.backoff_count = 0
-                    logger.info(f"Successfully uploaded batch of {len(ids)} records.")
-                    edge_metrics.counter("edge.uplink.success_count", len(ids))
-                    edge_metrics.gauge("edge.uplink.last_success_ts", time.time())
+                    logger.info(f"Successfully uploaded batch {batch.uuid} ({len(batch.records)} pts).")
                 else:
-                    self.bm.release(ids)
+                    # Do NOT delete. Backoff and retry (Head of Line blocking is intended for strict ordering? Or maybe just retry same batch)
+                    # For now: Head of Line blocking ensures order.
                     self.backoff_count += 1
-                    logger.warning(f"Batch upload failed. Consecutive failures: {self.backoff_count}")
-                    edge_metrics.counter("edge.uplink.failure_count", 1)
+                    logger.warning(f"Batch {batch.uuid} upload failed. Retry #{self.backoff_count}")
                 
-                # 5. Periodic Stats Emission
-                self.bm.stats()
-
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"UplinkWorker loop error: {e}")
                 await asyncio.sleep(self.interval)
 
-    async def _upload_batch(self, batch_dict: dict) -> bool:
+    async def _upload_batch(self, payload: dict, headers: dict) -> bool:
         """Performs the actual HTTP POST."""
         loop = asyncio.get_event_loop()
         try:
-            # Wrap blocking requests call in run_in_executor
             response = await loop.run_in_executor(
                 None, 
                 lambda: requests.post(
                     self.ingest_url, 
-                    json=batch_dict, 
+                    json=payload, 
+                    headers=headers,
                     timeout=self.timeout
                 )
             )
