@@ -87,10 +87,11 @@ def log_audit_event(actor: str, action: str, details: dict):
 
 
 @https_fn.on_request()
+@cors_enabled
 @require_auth
 def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
     """Unified Edge-to-Cloud Ingestion Point (v3.1)."""
-    from simco_common.schemas_v3 import TelemetryBatch
+    from simco_common.schemas_v3 import TelemetryBatch, TelemetryRecordV3
 
     if req.method != 'POST':
         return https_fn.Response('Only POST allowed', status=405)
@@ -105,9 +106,20 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
             cloud_metrics.counter("cloud.ingest.rejected_count", 1, labels={"reason": "no_json"})
             return https_fn.Response('No JSON provided', status=400)
 
-        # 1. Schema Validation (Task 5-1)
-        payload = TelemetryBatch(**data)
-        cloud_metrics.counter("cloud.ingest.accepted_count", len(payload.records))
+        # 1. Flexible Schema Validation (Task 5-1 adaptation)
+        # Supports both TelemetryBatch and single TelemetryRecordV3
+        if "records" in data and "gateway_id" in data:
+            payload = TelemetryBatch(**data)
+            records = payload.records
+        else:
+            # Wrap single record into a list for consistent processing
+            # Ensure deterministic record_id if missing
+            if "record_id" not in data:
+                data["record_id"] = f"{data.get('machine_id', 'unknown')}:{int(time.time())}"
+            record = TelemetryRecordV3(**data)
+            records = [record]
+
+        cloud_metrics.counter("cloud.ingest.accepted_count", len(records))
         
         # 2. Idempotency & Routing & Hot-Path Publishing
         ingested_ids = []
@@ -127,7 +139,7 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
         
         rows_to_insert = []
         row_ids = []
-        for r in payload.records:
+        for r in records:
             d = r.model_dump(mode='json')
             # Filter keys
             row = {k: v for k, v in d.items() if k in BQ_FIELDS}
@@ -155,7 +167,7 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        for record in payload.records:
+        for record in records:
             # Hot Path: Publish to Processing Bus (Expansion Task 1)
             record_data = record.model_dump()
             
@@ -176,7 +188,7 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
         cloud_metrics.histogram("cloud.ingest.latency_ms", latency)
         
         return https_fn.Response(
-            json.dumps({"status": "SUCCESS", "records_ingested": len(ingested_ids)}),
+            json.dumps({"status": "SUCCESS", "records_ingested": len(records)}),
             status=200,
             mimetype="application/json"
         )
@@ -187,6 +199,7 @@ def ingest_telemetry(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response(json.dumps({"status": "ERROR", "message": str(e)}), status=400, mimetype="application/json")
 
 @https_fn.on_request()
+@cors_enabled
 def ingest_events(req: https_fn.Request) -> https_fn.Response:
     """Ingest Events to BigQuery + Hot Path."""
     if req.method != 'POST': return https_fn.Response('POST only', status=405)
@@ -217,6 +230,7 @@ def ingest_events(req: https_fn.Request) -> https_fn.Response:
     return https_fn.Response(json.dumps({"status": "SUCCESS", "count": len(rows)}), mimetype="application/json")
 
 @https_fn.on_request()
+@cors_enabled
 def ingest_assets(req: https_fn.Request) -> https_fn.Response:
     """Ingest Asset metadata updates."""
     if req.method != 'POST': return https_fn.Response('POST only', status=405)
@@ -225,11 +239,17 @@ def ingest_assets(req: https_fn.Request) -> https_fn.Response:
     bq = get_bq_client()
     dataset = os.environ.get("BQ_DATASET", "simco_telemetry")
     table = f"{dataset}.assets_current"
-    # This might need MERGE logic (update if exists). 
-    # insert_rows_json checks streaming buffer. 
-    # Standard pattern: Insert to raw, materialize view dedupes.
-    
-    errors = bq.insert_rows_json(table, [data] if not isinstance(data, list) else data)
+    # Filter fields for assets_current schema
+    ALLOWED_FIELDS = {"machine_id", "tenant_id", "site_id", "ip", "vendor", "last_seen"}
+    if isinstance(data, list):
+        rows = [{k: v for k, v in row.items() if k in ALLOWED_FIELDS} for row in data]
+    else:
+        rows = [{k: v for k, v in data.items() if k in ALLOWED_FIELDS}]
+
+    errors = bq.insert_rows_json(table, rows)
+    if errors:
+        logger.error(f"Asset BQ Insert Failed: {errors}")
+        return https_fn.Response(json.dumps({"status": "ERROR", "errors": errors}), status=500, mimetype="application/json")
     
     return https_fn.Response(json.dumps({"status": "SUCCESS"}), mimetype="application/json")
 
@@ -1077,6 +1097,7 @@ def get_mobile_context(req: https_fn.Request) -> https_fn.Response:
         logger.error(f"ERP Query Error: {e}")
         
     response_data = {
+        "machine_id": machine_id, # Top level for test script
         "machine": {
             "id": machine_id,
             "name": f"Machine {machine_id}" 
@@ -1549,7 +1570,7 @@ def ask(req: https_fn.Request) -> https_fn.Response:
         viz_data_col = "quantity"
         
     # 2. Telemetry / Machine Status
-    elif any(k in q_lower for k in ["spindle", "load", "temp", "vibration", "power", "telemetry", "status", "feed"]):
+    elif any(k in q_lower for k in ["spindle", "load", "temp", "vibration", "power", "telemetry", "status", "feed", "machine", "siemens", "fanuc", "haas"]):
         # Determine metric key
         metric_key = "spindle_load" # Default
         if "power" in q_lower: metric_key = "power_kw"

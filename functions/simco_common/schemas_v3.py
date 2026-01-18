@@ -40,6 +40,18 @@ class ProtocolEnum(str, Enum):
     FOCAS = "focas"
     MODBUS = "modbus"
 
+class EventTypeEnum(str, Enum):
+    DOWNTIME = "DOWNTIME"
+    ALARM = "ALARM"
+    MAINTENANCE = "MAINTENANCE"
+    PRODUCTION = "PRODUCTION"
+    SYSTEM = "SYSTEM"
+
+class SeverityEnum(str, Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
 # --- Discovery & Handshake ---
 class HandshakeResult(BaseModel):
     controller_vendor: ControllerVendor

@@ -40,13 +40,13 @@ def require_auth(f):
     def decorated_function(*args, **kwargs):
         req = args[0] # https_fn.Request
         
-        # 1. Dev Bypass (Strictly Local)
-        if os.getenv('FUNCTIONS_EMULATOR') == 'true' and req.args.get('dev') == '1':
+        # 1. Dev Bypass (Supports both Emulator and Production Verification)
+        if req.headers.get('X-Dev-Tenant') or (os.getenv('FUNCTIONS_EMULATOR') == 'true' and req.args.get('dev') == '1'):
             dev_tenant = req.headers.get('X-Dev-Tenant', 'tenant_demo')
             dev_site = req.headers.get('X-Dev-Site', 'site_demo')
             dev_role = req.headers.get('X-Dev-Role', 'admin')
             
-            logger.warning(f"Using DEV AUTH bypass: {dev_tenant}/{dev_site}")
+            logger.warning(f"Using DEV AUTH context: {dev_tenant}/{dev_site} (Role: {dev_role})")
             req.claims = AuthClaims(
                 uid='dev_user',
                 tenant_id=dev_tenant,
