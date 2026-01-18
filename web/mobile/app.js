@@ -2,6 +2,12 @@ import { db } from './db.js';
 import { FORM_TEMPLATES, renderForm, extractFormData } from './forms.js';
 
 // --- Global State ---
+const DEV_HEADERS = {
+    "X-Dev-Role": "Operator",
+    "X-Dev-Tenant": "tenant_demo",
+    "X-Dev-Site": "site_demo"
+};
+
 const STATE = {
     user: JSON.parse(localStorage.getItem("simco_user")) || null,
     currentMachine: null,
@@ -94,7 +100,12 @@ function attachEvents(viewId) {
         startScanner();
     } else if (viewId === 'machine') {
         if (STATE.currentMachine) {
-            document.getElementById('machine-name').textContent = STATE.currentMachine.machine_name || "Unknown";
+            document.getElementById('machine-name').textContent = STATE.currentMachine.machine_name || STATE.currentMachine.machine_id || "Unknown";
+            document.getElementById('machine-status').textContent = STATE.currentMachine.status || "IDLE";
+            if (STATE.currentMachine.status === "ACTIVE" || STATE.currentMachine.status === "RUNNING") {
+                document.getElementById('machine-status').style.color = "#4CAF50";
+            }
+            document.getElementById('machine-last-seen').textContent = STATE.currentMachine.last_seen || "Just now";
         }
         document.getElementById('btn-leave-machine').onclick = () => showView('home');
         document.querySelectorAll('.btn-tile').forEach(btn => {
@@ -186,7 +197,7 @@ function handleAction(actionType) {
 async function handleSubmitForm() {
     const payload = extractFormData(FORM_TEMPLATES[STATE.currentForm]);
     const event = {
-        id: crypto.randomUUID(),
+        event_id: crypto.randomUUID(), // Corrected key for BQ schema
         machine_id: STATE.currentMachine.machine_id,
         event_type: STATE.currentForm.toUpperCase(),
         timestamp: new Date().toISOString(),
@@ -224,16 +235,24 @@ async function handleSync() {
 
     for (const ev of events) {
         try {
-            // POST /api/v1/ingest (Using existing ingest endpoint or new mobile one)
-            // For now, we mock success
-            console.log("Uploading", ev);
-            // Simulate API call
-            await new Promise(r => setTimeout(r, 500));
+            // POST /portal_api/v1/events (Using real production endpoint)
+            const res = await fetch("/portal_api/v1/events", {
+                method: "POST",
+                headers: {
+                    ...DEV_HEADERS,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify([ev]) // Expects array of events
+            });
 
-            // On success, remove from DB
-            await db.removeEvent(ev.id);
+            if (res.ok) {
+                console.log("Uploaded", ev.event_id);
+                await db.removeEvent(ev.event_id);
+            } else {
+                console.error("Sync failed for", ev.id, res.status);
+            }
         } catch (e) {
-            console.error("Sync failed for", ev.id, e);
+            console.error("Sync network error for", ev.id, e);
         }
     }
 

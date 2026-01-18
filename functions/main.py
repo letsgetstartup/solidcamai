@@ -1097,7 +1097,10 @@ def get_mobile_context(req: https_fn.Request) -> https_fn.Response:
         logger.error(f"ERP Query Error: {e}")
         
     response_data = {
-        "machine_id": machine_id, # Top level for test script
+        "machine_id": machine_id,
+        "machine_name": tel_row.get("name", f"Machine {machine_id}"), # Fixed key for mobile app
+        "status": tel_row.get("status", "UNKNOWN"),
+        "last_seen": tel_row.get("last_seen", "Unknown"),
         "machine": {
             "id": machine_id,
             "name": f"Machine {machine_id}" 
