@@ -34,8 +34,9 @@
 
 <body>
     <div class="container">
-        <h1>Connect to Simco Cloud</h1>
-        <p>Go to <strong>simco.ai/admin/pair</strong> and enter code:</p>
+        <h1>Simco Cloud Connectivity</h1>
+        <p>Go to your Admin Dashboard to pair this device:</p>
+        <p style="font-size: 1.2em; color: #888;">solidcam-f58bc.web.app/admin/pair_device.html</p>
         <div id="code">LOADING</div>
         <div class="status" id="status">Waiting for code...</div>
     </div>
@@ -77,7 +78,7 @@
                     localStorage.setItem("display_token", data.token);
                     localStorage.setItem("tenant_id", data.tenant_id);
                     localStorage.setItem("site_id", data.site_id);
-                    setTimeout(() => window.location.href = "../dashboard.html", 1000);
+                    setTimeout(() => window.location.href = "./index.html", 1000);
                 } else if (data.status === "PENDING") {
                     setTimeout(poll, 2000); // Retry
                 } else {

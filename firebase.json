@@ -38,6 +38,10 @@
                     "function": "pair_init"
                 },
                 {
+                    "source": "/pair_confirm",
+                    "function": "pair_confirm"
+                },
+                {
                     "source": "/pair_token",
                     "function": "pair_token"
                 },
