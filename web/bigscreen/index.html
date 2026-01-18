@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SIMCO AI • Shop Floor Wallboard</title>
+    <link rel="stylesheet" href="./bigscreen.css" />
+</head>
+
+<body>
+    <div class="root">
+        <header class="topbar">
+            <div class="brand">
+                <div class="title">SIMCO AI • Wallboard</div>
+                <div class="subtitle" id="siteLine">Tenant: — • Site: —</div>
+            </div>
+            <div class="meta">
+                <div class="clock" id="clock">—</div>
+                <div class="badge" id="connBadge">CONNECTING…</div>
+                <div class="stamp" id="stamp">Updated: —</div>
+            </div>
+        </header>
+
+        <main class="grid">
+            <section class="panel alerts">
+                <h2>Alerts</h2>
+                <div class="kpis">
+                    <div class="kpi">
+                        <div class="kpiLabel">Down</div>
+                        <div class="kpiValue" id="kpiDown">—</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpiLabel">At Risk</div>
+                        <div class="kpiValue" id="kpiRisk">—</div>
+                    </div>
+                </div>
+                <ul class="alertList" id="alertList"></ul>
+            </section>
+
+            <section class="panel machines">
+                <h2>Machines</h2>
+                <div class="fleetRow" id="fleetRow"></div>
+                <div class="tileGrid" id="tileGrid"></div>
+            </section>
+
+            <section class="panel orders">
+                <h2>Production (ERP)</h2>
+                <div class="orderTableWrap">
+                    <table class="orderTable">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Resource</th>
+                                <th>Item</th>
+                                <th>Due</th>
+                                <th>Operator</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderRows"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div class="ticker" id="ticker">Safety first • Keep aisles clear • PPE required</div>
+            <div class="small" id="smallNote">Display Mode (read-only)</div>
+        </footer>
+    </div>
+
+    <script src="./bigscreen.js"></script>
+</body>
+
+</html>

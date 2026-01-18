@@ -13,8 +13,8 @@ const STATE = {
 // For this MVP, we map specific "services" to their Gen 2 URLs.
 
 const API_MAP = {
-    "context": "https://get-mobile-context-i6yvrrps6q-uc.a.run.app", // Gen 2 Function
-    "ingest": "https://ingest-telemetry-i6yvrrps6q-uc.a.run.app"     // Re-using telemetry ingest for now
+    "context": "", // Using relative path
+    "ingest": ""
 };
 
 const API_BASE = ""; // Not used directly anymore

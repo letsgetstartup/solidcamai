@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "solidcam-f58bc"
+  },
   "targets": {
     "solidcam-f58bc": {
       "hosting": {

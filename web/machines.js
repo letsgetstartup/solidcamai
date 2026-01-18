@@ -1,5 +1,5 @@
 // Production Gen 2 Function for QR
-const QR_SERVICE_URL = "https://generate-qr-i6yvrrps6q-uc.a.run.app";
+const QR_SERVICE_URL = "";
 
 const DEV_HEADERS = {
     "X-Dev-Role": "Manager",
@@ -29,7 +29,7 @@ async function api(path, opts = {}) {
     return res.json();
 }
 
-const API_BASE = "https://portal-api-i6yvrrps6q-uc.a.run.app";
+const API_BASE = "";
 
 async function loadMachines() {
     const tenantId = document.getElementById("tenant_id").value;

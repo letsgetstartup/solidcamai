@@ -14,6 +14,7 @@
     ],
     "hosting": [
         {
+            "site": "solidcamal",
             "public": "web",
             "ignore": [
                 "firebase.json",
@@ -46,18 +47,52 @@
                     "function": "pair_token"
                 },
                 {
+                    "source": "/portal_api/v1/ingest",
+                    "function": "ingest_telemetry"
+                },
+                {
+                    "source": "/portal_api/**",
+                    "function": "portal_api"
+                },
+                {
                     "source": "/equations_api/**",
                     "function": "equations_api"
+                },
+                {
+                    "source": "/machines",
+                    "destination": "/machines.html"
+                },
+                {
+                    "source": "/mgmt/**",
+                    "function": "generate_qr"
+                },
+                {
+                    "source": "/mobile/v1/**",
+                    "function": "get_mobile_context"
+                },
+                {
+                    "source": "/mobile/**",
+                    "destination": "/mobile/index.html"
                 },
                 {
                     "source": "**",
                     "destination": "/index.html"
                 }
             ],
-            "target": "prod"
+            "headers": [
+                {
+                    "source": "**",
+                    "headers": [
+                        {
+                            "key": "Cache-Control",
+                            "value": "no-cache, no-store, must-revalidate"
+                        }
+                    ]
+                }
+            ]
         },
         {
-            "target": "simco",
+            "site": "solidcamal-chat",
             "public": "web_simco_public",
             "ignore": [
                 "firebase.json",

@@ -11,7 +11,7 @@ import mgmt_api as mgmt_api_routes
 import ingest_api as ingest_api_routes
 from admin_api import routes as admin_api_routes # PR2
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import functools
@@ -28,16 +28,27 @@ if not firebase_admin._apps:
 logger = logging.getLogger("functions")
 
 def cors_enabled(func):
-    """Decorator to handle CORS preflight and headers."""
+    """Decorator to handle CORS preflight and headers dynamically."""
     @functools.wraps(func)
     def wrapper(req: https_fn.Request) -> https_fn.Response:
+        origin = req.headers.get("Origin")
+        # Allowed origins: support both production, demo, and local dev
+        # Production: *.web.app, *.firebaseapp.com
+        # Local: http://localhost:*
+        
+        cors_origin = "https://solidcamal.web.app" # Default fallback
+        if origin:
+            if origin.endswith(".web.app") or origin.endswith(".firebaseapp.com") or origin.startswith("http://localhost:"):
+                cors_origin = origin
+
         # Handle OPTIONS preflight
         if req.method == 'OPTIONS':
             headers = {
-                'Access-Control-Allow-Origin': 'https://solidcam-f58bc.web.app',
+                'Access-Control-Allow-Origin': cors_origin,
                 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                'Access-Control-Max-Age': '3600'
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Display-Token, X-Tenant-ID, X-Dev-Role, X-Dev-Tenant, X-Dev-Site',
+                'Access-Control-Max-Age': '3600',
+                'Vary': 'Origin'
             }
             return https_fn.Response('', status=204, headers=headers)
 
@@ -45,7 +56,9 @@ def cors_enabled(func):
         response = func(req)
         
         # Add CORS headers to actual response
-        response.headers['Access-Control-Allow-Origin'] = 'https://solidcam-f58bc.web.app'
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Display-Token, X-Tenant-ID'
+        response.headers['Vary'] = 'Origin'
         return response
     return wrapper
 
@@ -273,25 +286,29 @@ ERP_CACHE_TTL = 30
 @https_fn.on_request()
 @cors_enabled
 def pair_init(req: https_fn.Request) -> https_fn.Response:
-    """Device requests pairing code."""
-    if req.method != 'POST': return https_fn.Response('POST only', status=405)
-    data = req.get_json() or {}
-    device_fp = data.get("fingerprint", "unknown_device")
-    
-    import random, string
-    code = ''.join(random.choices(string.digits, k=6))
-    
-    # Store in Firestore
-    db = firestore.client()
-    now = datetime.utcnow()
-    db.collection("pairing_codes").document(code).set({
-        "device_fp": device_fp,
-        "status": "PENDING",
-        "created_at": now.isoformat(),
-        "expires_at": int(now.timestamp() + 300) # 5 minutes TTL
-    })
-    
-    return https_fn.Response(json.dumps({"code": code, "expiry": 300}), mimetype="application/json")
+    try:
+        if req.method != 'POST': return https_fn.Response('POST only', status=405)
+        data = req.get_json() or {}
+        device_fp = data.get("fingerprint", "unknown_device")
+        
+        import random, string
+        code = ''.join(random.choices(string.digits, k=6))
+        
+        # Store in Firestore
+        db = firestore.client()
+        now = datetime.utcnow()
+        db.collection("pairing_codes").document(code).set({
+            "device_fp": device_fp,
+            "status": "PENDING",
+            "created_at": now.isoformat(),
+            "expires_at": int(now.timestamp() + 300) # 5 minutes TTL
+        })
+        
+        return https_fn.Response(json.dumps({"code": code, "expiry": 300}), mimetype="application/json")
+    except Exception as e:
+        import traceback
+        logger.error(f"Pairing error: {str(e)}")
+        return https_fn.Response(json.dumps({"error": str(e), "trace": traceback.format_exc()}), status=500, mimetype="application/json")
 
 @https_fn.on_request()
 @cors_enabled
@@ -640,13 +657,30 @@ def check_rbac(req: https_fn.Request, tenant_id: str, site_id: Optional[str] = N
         if display_token == "display_demo" and tenant_id == "tenant_demo" and site_id == "site_demo":
             logger.info(f"Display Token Auth: Access granted for display_demo")
             return True, None
-        # If it's a real token flow, we'd query the DB here.
-        # For now, if it starts with display_, we allow it in dev mode
-        if display_token.startswith("display_") and os.environ.get("DEV_MODE") == "1":
-             return True, None
-             
+            
+        # PRODUCTION: Verify token against Firestore
+        try:
+            db = firestore.client()
+            # Perform a query or lookup. Since token is stored in the document, we might need a query
+            # or we could have stored token->doc mapping.
+            # Current schema: pairing_codes collection has 'token' field.
+            
+            # Query for the token
+            docs = db.collection("pairing_codes").where("token", "==", display_token).limit(1).get()
+            if not docs:
+                 return False, "Invalid Display Token"
+            
+            record = docs[0].to_dict()
+            
+            # Verify Scope
+            if record.get("tenant_id") == tenant_id and record.get("site_id") == site_id:
+                return True, None
+            else:
+                return False, "Token Scope Mismatch"
 
-        return False, "Invalid or unauthorized Display Token"
+        except Exception as e:
+            logger.error(f"Token Verification Error: {e}")
+            return False, "Token Validation Error"
 
     # 2. Try Token Auth (Production Standard)
     user_claims = validate_auth(req)
@@ -677,10 +711,18 @@ def check_rbac(req: https_fn.Request, tenant_id: str, site_id: Optional[str] = N
 
 @https_fn.on_request()
 @cors_enabled
-@require_auth
+# Auth handled internally by check_rbac which supports both Bearer and Display tokens
 def portal_api(req: https_fn.Request) -> https_fn.Response:
     """Unified UI Read API with RBAC."""
     path = req.path
+    
+    # Health check endpoint
+    if path.endswith("/health"):
+        return https_fn.Response(
+            json.dumps({"status": "healthy", "version": "2.0", "timestamp": datetime.now(timezone.utc).isoformat()}),
+            status=200,
+            mimetype="application/json"
+        )
     
     # Simple Router
     # Expected: .../v1/tenants/{tid}/sites/...
@@ -1353,7 +1395,9 @@ def equations_api(req: https_fn.Request) -> https_fn.Response:
         return resp
 
     # Parse path: /equations_api/v1/tenants/{tenant}/sites/{site}/eval
-    path = getattr(req, "path", "") or ""
+    path = getattr(req, "path", "") or "" # BigScreen Summary
+    if match := re.match(r"/v1/tenants/([^/]+)/sites/([^/]+)/bigscreen/summary", path):
+        logger.info(f"BigScreen summary request: tenant={match.group(1)}, site={match.group(2)}, token={req.headers.get('X-Display-Token', 'none')[:20]}...")
     m = re.search(r"/v1/tenants/([^/]+)/sites/([^/]+)/eval", path)
     if not m:
         resp = https_fn.Response(json.dumps({"error":"Bad path structure"}), status=400, mimetype="application/json")
@@ -1445,24 +1489,13 @@ def equations_api(req: https_fn.Request) -> https_fn.Response:
 # The UI sends header X-Tenant-ID (hardcoded as 'test_tenant' in simco public/script.js).
 # We keep the UI untouched and adapt here.
 @https_fn.on_request()
+@cors_enabled
 def ask(req: https_fn.Request) -> https_fn.Response:
-    if req.method == "OPTIONS":
-        return https_fn.Response(
-            "",
-            status=204,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Tenant-ID",
-            },
-        )
-
     if req.method != "POST":
         return https_fn.Response(
             json.dumps({"error": "POST only"}),
             status=405,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"},
+            mimetype="application/json"
         )
 
     data = req.get_json(silent=True) or {}
@@ -1474,8 +1507,7 @@ def ask(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response(
             json.dumps({"error": "UNAUTHORIZED", "details": "Missing X-Tenant-ID"}),
             status=401,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"},
+            mimetype="application/json"
         )
 
     # Alias Demo Tenant
@@ -1501,11 +1533,11 @@ def ask(req: https_fn.Request) -> https_fn.Response:
         # Extract from JSON payload if columns are missing/null
         sql = f"""
         SELECT 
-            JSON_EXTRACT_SCALAR(payload, '$.order_id') as order_id,
-            JSON_EXTRACT_SCALAR(payload, '$.product_id') as product_id,
-            JSON_EXTRACT_SCALAR(payload, '$.status') as status,
-            CAST(JSON_EXTRACT_SCALAR(payload, '$.quantity') AS INT64) as quantity,
-            JSON_EXTRACT_SCALAR(payload, '$.due_date') as due_date
+            order_id,
+            product_id,
+            status,
+            quantity,
+            due_date
         FROM `{dataset}.raw_erp_orders`
         WHERE tenant_id = @tenant_id AND site_id = @site_id
         ORDER BY due_date ASC
@@ -1528,11 +1560,11 @@ def ask(req: https_fn.Request) -> https_fn.Response:
         # Assuming metrics is STRING based on seeding script.
         sql = f"""
         SELECT machine_id, '{metric_key}' as metric, 
-               CAST(JSON_EXTRACT_SCALAR(metrics, '$.{metric_key}') AS FLOAT64) as value, 
+               SAFE_CAST(JSON_VALUE(metrics, '$.{metric_key}') AS FLOAT64) as value, 
                timestamp
         FROM `{dataset}.raw_telemetry`
         WHERE tenant_id = @tenant_id AND site_id = @site_id
-          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         ORDER BY timestamp DESC
         LIMIT 50
         """
@@ -1556,7 +1588,7 @@ def ask(req: https_fn.Request) -> https_fn.Response:
         WHERE tenant_id = @tenant_id 
           AND site_id = @site_id
           {event_filter}
-          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+          AND CAST(timestamp AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY machine_id, type
         ORDER BY event_count DESC
         LIMIT 10

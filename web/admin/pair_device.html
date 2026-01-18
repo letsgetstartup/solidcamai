@@ -34,13 +34,13 @@
 </head>
 
 <body>
-    <h1>Pair New Display</h1>
+    <h1>Connect to Simco Cloud</h1>
     <div id="auth-check">Checking Auth...</div>
 
     <div id="form" style="display:none;">
         <div class="form-group">
             <label>Pairing Code (from TV):</label>
-            <input type="text" id="code" maxlength="6" placeholder="123456">
+            <input type="text" id="pairing-code-input" maxlength="6" placeholder="123456">
         </div>
         <div class="form-group">
             <label>Tenant ID:</label>
@@ -50,52 +50,75 @@
             <label>Site ID:</label>
             <input type="text" id="site_id" value="site_demo">
         </div>
-        <button onclick="confirmPair()">Pair Device</button>
+        <button type="button" onclick="confirmPair()">Pair Device</button>
         <div id="result"></div>
     </div>
 
-    <!-- Firebase Scripts (Simulated for this file) -->
     <script type="module">
-        // Mock Auth for Dev
-        const token = localStorage.getItem("admin_token");
-        if (!token) {
-            document.getElementById("auth-check").innerText = "Not Authenticated. (Set 'admin_token' in localStorage)";
-            // Mock login helper
-            const btn = document.createElement("button");
-            btn.innerText = "Dev Login";
-            btn.onclick = () => {
-                localStorage.setItem("admin_token", "mock_admin_token"); // Requires backend to accept mock or real token
-                location.reload();
-            };
-            document.body.appendChild(btn);
+        const authCheck = document.getElementById("auth-check");
+        const form = document.getElementById("form");
+
+        // Initialization: Check if key exists in local storage
+        if (localStorage.getItem("simco_admin_key")) {
+            authCheck.style.display = "none";
+            form.style.display = "block";
         } else {
-            document.getElementById("auth-check").style.display = "none";
-            document.getElementById("form").style.display = "block";
+            authCheck.innerText = "Access Restricted.";
+            const keyBox = document.createElement("div");
+            keyBox.style.marginTop = "10px";
+            keyBox.innerHTML = `
+                <input type="password" id="admin-key-input" placeholder="Enter Admin Access Key">
+                <button id="btn-unlock">Unlock Console</button>
+            `;
+            authCheck.appendChild(keyBox);
+
+            document.getElementById("btn-unlock").onclick = () => {
+                const key = document.getElementById("admin-key-input").value;
+                if (key) {
+                    localStorage.setItem("simco_admin_key", key);
+                    location.reload();
+                }
+            };
         }
 
         window.confirmPair = async () => {
-            const code = document.getElementById("code").value;
-            const tenant = document.getElementById("tenant_id").value;
-            const site = document.getElementById("site_id").value;
-            const API_BASE = "http://localhost:5001/solidcam-ai-demo/us-central1";
+            const codeInput = document.getElementById("pairing-code-input");
+            const code = codeInput.value.trim();
+            const tenant = document.getElementById("tenant_id").value.trim();
+            const site = document.getElementById("site_id").value.trim();
+            const resultDiv = document.getElementById("result");
+            const API_BASE = "";
+
+            if (!code || code.length !== 6) {
+                resultDiv.style.color = "red";
+                resultDiv.innerText = `Error: Invalid pairing code "${code}" (must be 6 digits)`;
+                return;
+            }
+            resultDiv.style.color = "black";
 
             try {
+                const token = localStorage.getItem("simco_admin_key");
                 const res = await fetch(`${API_BASE}/pair_confirm`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": "Bearer " + localStorage.getItem("admin_token") // Needs Real ID Token in prod
+                        "Authorization": "Bearer " + token
                     },
                     body: JSON.stringify({ code: code, tenant_id: tenant, site_id: site })
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    document.getElementById("result").innerText = "Success! Device Paired.";
+                    resultDiv.innerText = "Success! Device Paired.";
                 } else {
-                    document.getElementById("result").innerText = "Error: " + data.error;
+                    resultDiv.innerText = "Error: " + (data.error || "Authorization Failed");
+                    // If 401/403, might need to clear key
+                    if (res.status === 401 || res.status === 403) {
+                        localStorage.removeItem("simco_admin_key");
+                        resultDiv.innerText += ". Key reset, please refresh.";
+                    }
                 }
             } catch (e) {
-                document.getElementById("result").innerText = "Error: " + e.message;
+                resultDiv.innerText = "Error: " + e.message;
             }
         }
     </script>

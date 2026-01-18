@@ -9,7 +9,7 @@ const auth = getAuth(app);
 // Dev Mode Configuration (Moved to top)
 const urlParams = new URLSearchParams(window.location.search);
 const isDev = urlParams.get('dev') === '1';
-const API_BASE = isDev ? "http://127.0.0.1:8081" : "https://portal-api-i6yvrrps6q-uc.a.run.app";
+const API_BASE = isDev ? "http://127.0.0.1:8081" : "";
 const DEV_HEADERS = {
     "X-Dev-Role": "Manager",
     "X-Dev-Tenant": "tenant_demo",
